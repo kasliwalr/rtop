@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Custom
+scratch/
+bin/
+libs
+scripts
+*.swp
+media/
+docs/frames/

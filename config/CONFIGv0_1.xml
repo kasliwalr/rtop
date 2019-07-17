@@ -1,0 +1,452 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- Callbacks Format: class_name, member_method -->
+<!-- acceptable method signatures: 'void(*method_name)()' --> 
+<Callbacks> 
+ Screen, refreshScr
+ StateMachine, next
+ StateMachine, stale
+ SimplePanelData, Down
+ SimplePanelData, Up
+ SimplePanelData, editModeOn
+ SimplePanelData, editModeOff
+ SimplePanelData, insertIntoLeftNbr
+ SimplePanelData, insertIntoRightNbr
+ SimplePanelData, addIntoLeftNbr
+ SimplePanelData, addIntoRightNbr
+ SimplePanelData, moveIntoRightNbr
+ SimplePanelData, moveIntoLeftNbr
+ SimplePanelData, toggleEditMode
+ SimplePanelData, remove
+ Columns, markPid
+ Columns, read
+ ProcInfo, kill
+ SimplePanelData, moveRight
+ SimplePanelData, moveLeft
+ SimplePanelData, addColumn
+ SimplePanelData, deleteColumn
+ SimplePanelData, insertColumn
+ SimplePanelData, setSortKey
+</Callbacks>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- Key Codes defined in ncurses.h -->
+<!-- Note: Numerical values are in octal -->
+<!-- F1 =        0411-->
+<!-- F2 =        0412-->
+<!-- F3 =        0413-->
+<!-- F4 =        0414-->
+<!-- F5 =        0415-->
+<!-- F6 =        0416-->
+<!-- F7 =        0417-->
+<!-- F8  =       0420-->
+<!-- F9 =        0421-->
+<!-- F10 =       0422-->
+<!-- ENTER =     012-->
+<!-- DEL =       0512-->
+<!-- BACKSPC =   0407-->
+<!-- ESC  =      033 -->
+<!-- UP_ARR =    0403-->
+<!-- DOWN_ARR =  0402-->
+<!-- RIGHT_ARR = 0405-->
+<!-- LEFT_ARR  = 0404-->
+<!-- MOUSE_KEY = 0631-->
+
+<!-- KeyDictionaries Format: list of KeyDict -->
+ <!-- KeyDict Format: Uuid=key_dict_uuid list of KeyActions -->
+  <!-- KeyActions Format: Key=keycode_in_octal list of Actions -->
+   <!-- Action Format: object_uuid, method_name -->
+  <!-- KeyActions Format -->
+ <!-- KeyDict Format -->
+<!-- KeyDictionaries Format -->
+<KeyDictionaries>
+ <KeyDict Uuid="1">
+  <KeyActions Key="0412">
+   <Action>101, next</Action>
+   <Action>102, next</Action>
+  </KeyActions>
+  <KeyActions Key="033">
+   <Action>101, next</Action>
+   <Action>102, next</Action>
+  </KeyActions>
+  <KeyActions Key="012">
+   <Action>101, next</Action>
+   <Action>102, next</Action>
+  </KeyActions>
+  <KeyActions Key="0421">
+   <Action>101, next</Action>
+   <Action>102, next</Action>
+  </KeyActions>
+  <KeyActions Key="0422">
+   <Action>101, next</Action>
+   <Action>102, next</Action>
+  </KeyActions>
+  <KeyActions Key="-1">  <!-- if none of above key is found, these key actions are carried out -->
+   <Action>101, stale</Action>
+   <Action>102, stale</Action>
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="2">
+  <KeyActions Key="0405">
+   <Action>103, next</Action>
+   <Action>104, next</Action>
+  </KeyActions>
+  <KeyActions Key="0404">
+   <Action>103, next</Action>
+   <Action>104, next</Action>
+  </KeyActions>
+  <KeyActions Key="-1">
+   <Action>103, stale</Action>
+   <Action>104, stale</Action>
+  </KeyActions>
+  <KeyActions Key="033">
+   <Action>303, read</Action> <!-- TODO -->
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="3">
+  <KeyActions Key="-1">
+   <Action>107, next</Action>
+   <Action>108, next</Action>
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="4">
+  <KeyActions Key="0413">
+   <Action>106, next</Action>
+  </KeyActions>
+  <KeyActions Key="033">
+   <Action>106, next</Action>
+  </KeyActions>
+  <KeyActions Key="0414">
+   <Action>106, next</Action>
+  </KeyActions>
+  <KeyActions Key="012">
+   <Action>106, next</Action>
+  </KeyActions>
+  <KeyActions Key="0421">
+   <Action>303, markPid</Action>
+  </KeyActions>
+  <KeyActions Key="-1">
+   <Action>106, stale</Action>
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="5">
+  <KeyActions Key="0403">
+   <Action>-1, Up</Action>
+  </KeyActions>
+  <KeyActions Key="0402">
+   <Action>-1, Down</Action>
+  </KeyActions>
+  <KeyActions Key="0631">
+   <Action>-1, setSortKey</Action>
+   <Action>303, read</Action>
+  </KeyActions>
+ </KeyDict>
+ <!-- TODO: add KeyDict,51 -->
+ <!-- TODO: add KeyDict,52 -->
+ <KeyDict Uuid="6">
+  <KeyActions Key="0403">
+   <Action>-1, Up</Action>
+  </KeyActions>
+  <KeyActions Key="0402">
+   <Action>-1, Down</Action>
+  </KeyActions>
+  <KeyActions Key="012">
+   <Action>302, kill</Action> <!-- TODO: add procinfo_uuid -->
+   <Action>303, read</Action>
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="7">
+  <KeyActions Key="0403">
+   <Action>5, moveLeft</Action>
+   <Action>-1, Up</Action>
+  </KeyActions>
+  <KeyActions Key="0402">
+   <Action>5, moveRight</Action>
+   <Action>-1, Down</Action>
+  </KeyActions>
+  <KeyActions Key="012">
+   <Action>-1, toggleEditMode</Action>
+  </KeyActions>
+  <KeyActions Key="0512"> <!-- DON'T CHANGE CALLBACK INVOCATION ORDER -->
+   <Action>5, deleteColumn</Action>
+   <Action>-1, remove</Action>
+  </KeyActions>
+ </KeyDict>
+ <KeyDict Uuid="8">
+  <KeyActions Key="0403">
+   <Action>-1, Up</Action>
+  </KeyActions>
+  <KeyActions Key="0402">
+   <Action>-1, Down</Action>
+  </KeyActions>
+  <KeyActions Key="012">
+   <Action>-1, insertIntoLeftNbr</Action>
+   <Action>5, insertColumn</Action>
+  </KeyActions>
+ </KeyDict>
+</KeyDictionaries>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- Global Colors for coloring menu items etc.-->
+<!-- Colors Format: color_num, foreground_color, background_color -->
+<Colors>
+1, BLACK, WHITE
+2, BLACK, BLUE
+3, BLACK, YELLOW
+4, BLACK, GREEN
+</Colors>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- Non Graphical Objects -->
+
+<!-- Column Format: Uuid=self_uuid Screen=screen_uuid ProcInfo = procinfo_uuid ProcViewPanel= procview_panel_uuid -->
+<!-- ProcView contain view_uuid of views containing ProcViewPanel -->
+<!-- ProcViews Format: view_uuid, view_uuid -->
+<!-- Column Format -->
+<Column Uuid="303" Screen="1" ProcInfo="302" ProcViewPanel="5">
+ <ProcViews>3,4</ProcViews>
+</Column>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- PROC PROP FIELDS IN /proc/PID/stat -->
+<!-- PID @ 1 -->
+<!-- PPID @ 4 -->
+<!-- SSID @ 6 -->
+<!-- UTIME @ 14 -->
+<!-- STIME @ 15 -->
+<!-- PRI @ 18 -->
+<!-- ST_TIME @ 22 -->
+<!-- MEM_SZ @ 23 -->
+<!-- PROCESSOR @ 39 -->
+
+<!-- ProcInfo Format: Uuid=self_uuid SortKey=sort_key_name ProcDb=database_uuid -->
+<ProcInfo Uuid="302" SortKey="PID" ProcDb="301"></ProcInfo>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- ProcDb Format: Uuid=self_uuid -->
+<!-- FieldProperties Format: field_loc, field_name, field_data_type -->
+<!-- ProcDb Format -->
+<ProcDb Uuid="301">
+ <!-- TODO: Add all properties that need to be displayed -->
+ <FieldProperties>
+  1,PID, int
+  4,PPID, int
+  6, SSID, int
+ 14,UTIME, long
+ 15,STIME, long
+ 18,PRI, int
+ </FieldProperties>
+</ProcDb>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
+<!-- Graphical Objects -->
+<!-- Screen Format: Uuid=self_uuid Name=name currView=curr_view_uuid -->
+ <!-- StateMachine Format: Uuid=sm_uuid Type=View/Panel/KeyDict CurrState=start_state_uuid Separator=sep_char_transition_parse -->
+  <!-- Transitions Format: curr_state, key_in_octal, next_state -->
+ <!-- StateMachine Format -->
+ <!-- View Format: Uuid=self_uuid Name=header currPanel=curr_panel_uuid -->
+  <!-- PanelColors Format -->
+   <!-- Selection Format: menu_item_selection_color_id -->
+   <!-- Editing Format: menu_item_editing_color_id -->
+   <!-- Selection Format: panel_header_color_id -->
+  <!-- PanelColors Format -->
+  <!-- StateMachine -->
+  <!-- PanelPositions Format -->
+   <!-- Position Format: XPos="xpos_viewwindow_coords" YPos="ypos_in_viewwindow_coords -->
+  <!-- PanelPositions Format --> 
+  <!-- Neighbourhood Format panel_uuid, left_nbr_panel_uuid, right_nbr_panel_uuid -->
+  <!-- Panel Format Uuid=self_uuid Type=1/2/3 ContainerData=info Header=header Height=lines Width=cols -->
+   <!-- StateMachine -->
+   <!-- ObjectList Format: Separator = "\n" Capacity=cap ,Text, -->
+   <!-- [] enclosed field are optional, but are required simultaneously in procviewpanel -->
+   <!-- [Columns] Format: prop_name, prop_panel_width -->
+   <!-- [ActiveProc] Format: active_proc_panel_uuid -->
+   <!-- [ProcDb] Format: procdb_uuid --> 
+  <!-- Panel Format --> 
+ <!-- View Format -->
+<!-- Screen Format -->
+<Screen Uuid="1" Name="Screen" currView="4">
+ <StateMachine Uuid="101" Type="View" CurrState="4" Separator="\n">
+  <Transitions>
+   2,033,4
+   2,-1,4
+   3,012,4
+   3,033,4
+   3,-1,2
+   4,0412,2
+   4,0421,3
+   4,0422,-1
+   4,-1,4  
+  </Transitions>
+ </StateMachine>
+ <StateMachine Uuid="102" Type="KeyDict" CurrState="1" Separator="\n">
+  <Transitions>
+   1,-1,1
+  </Transitions>
+ </StateMachine>
+ <View Uuid="2" Name="ProcSettings" currPanel="7">
+  <PanelColors>
+   <Selection>2</Selection>
+   <Editing>3</Editing>
+   <Header>4</Header>
+  </PanelColors>
+  <StateMachine Uuid="103" Type="Panel" CurrState="7" Separator="\n">
+   <Transitions>
+    7,0405,8
+    7,-1,7 
+    8,0404,7
+    8,-1,8 
+   </Transitions>
+  </StateMachine>
+  <StateMachine Uuid="104" Type="KeyDict" CurrState="2" Separator="\n">
+   <Transitions>
+    2,-1,2 
+   </Transitions>
+  </StateMachine>
+  <PanelPositions>
+   <Position XPos="0" YPos="0"/>
+   <Position XPos="22" YPos="0"/>
+  </PanelPositions>
+  <Neighbourhood>
+   7,0,8
+   8,7,0 
+  </Neighbourhood>
+  <Panel Uuid="7" Type="2" ContainerData="info" Header="ACTIVE" Height="40" Width="20">
+   <StateMachine Uuid="207" Type="KeyDict" CurrState="7" Separator="\n">
+    <Transitions>
+     7,-1,7
+    </Transitions>
+   </StateMachine> 
+   <ObjectList Separator="\n" Capacity="10">
+     ,PID,
+     ,PPID,
+     ,Command,
+    </ObjectList>
+  </Panel>
+  <Panel Uuid="8" Type="1" ContainerData="info" Header="ALLPROC" Height="40" Width="20">
+   <StateMachine Uuid="208" Type="KeyDict" CurrState="8" Separator="\n">
+    <Transitions>
+     8,-1,8
+    </Transitions>
+   </StateMachine>
+   <!-- TODO: Add all properties that need to be displayed --> 
+   <ObjectList Separator="\n" Capacity="10">
+     ,PID,
+     ,PPID,
+     ,SSID,
+     ,UTIME,
+     ,STIME,
+     ,PRI,
+     ,Command,
+    </ObjectList>
+  </Panel>
+ </View>
+ <View Uuid="3" Name="SendSignal" currPanel="6">
+  <PanelColors>
+   <Selection>2</Selection>
+   <Editing>3</Editing>
+   <Header>4</Header>
+  </PanelColors>
+  <StateMachine Uuid="107" Type="Panel" CurrState="6" Separator="\n">
+   <Transitions>
+    6,-1,6
+   </Transitions>
+  </StateMachine>
+  <StateMachine Uuid="108" Type="KeyDict" CurrState="3" Separator="\n">
+   <Transitions>
+    3,-1,3
+   </Transitions>
+  </StateMachine>
+  <PanelPositions>
+   <Position XPos="0" YPos="0"/>
+   <Position XPos="17" YPos="0"/>
+   </PanelPositions>
+  <Neighbourhood>
+   6,0,5
+   5,6,0
+  </Neighbourhood>
+  <Panel Uuid="6" Type="1" ContainerData="info" Header="SIGNALS" Height="40" Width="15">
+   <StateMachine Uuid="206" Type="KeyDict" CurrState="6" Separator="\n">
+    <Transitions>
+     6,-1,6
+    </Transitions>
+   </StateMachine>
+   <!-- TODO: Add all signals that can be sent to processes -->
+   <ObjectList Separator="\n" Capacity="10">
+   ,meters, 
+   ,columns,
+   </ObjectList>
+     </Panel>
+  <Panel Uuid="5" Type="3" ContainerData="panels" Header="" Height="40" Width="60">
+   <StateMachine Uuid="205" Type="KeyDict" CurrState="5" Separator="\n">
+    <Transitions>
+     5,-1,5 
+    </Transitions>
+   </StateMachine>
+   <SortKey>PID</SortKey>
+   <!-- TODO: Add all properties to be displayed -->
+   <Columns>
+    PID, 6
+    PPID, 6
+    SSID, 6
+    UTIME,10
+    STIME,10
+    PRI, 6
+    Command, 30
+   </Columns>
+   <ActiveProc>7</ActiveProc>
+   <ProcDb>301</ProcDb> 
+  </Panel>
+ </View>
+ <View Uuid="4" Name="ProcView" currPanel="5">
+  <PanelColors>
+   <Selection>2</Selection>
+   <Editing>3</Editing>
+   <Header>4</Header>
+  </PanelColors>
+  <StateMachine Uuid="105" Type="Panel" CurrState="5" Separator="\n">
+   <Transitions>
+    5,-1,5
+   </Transitions>
+  </StateMachine>
+  <StateMachine Uuid="106" Type="KeyDict" CurrState="4" Separator="\n">
+   <Transitions>
+    4,-1,4
+   </Transitions>
+  </StateMachine>
+  <PanelPositions>
+   <Position XPos="0" YPos="0"/>
+   </PanelPositions>
+  <Neighbourhood>
+   5,0,0 
+  </Neighbourhood>
+  <Panel Uuid="5" Type="3" ContainerData="info" Header="" Height="40" Width="60">
+   <StateMachine Uuid="205" Type="KeyDict" CurrState="5" Separator="\n">
+    <Transitions>
+     5,-1,5
+    </Transitions>
+   </StateMachine>
+   <SortKey>PID</SortKey>
+   <!-- TODO: Add all properties to be displayed -->
+   <Columns>
+    PID, 6
+    PPID, 6
+    SSID, 6
+    UTIME, 10
+    STIME, 10
+    PRI, 6
+    Command, 30
+   </Columns>
+   <ActiveProc>7</ActiveProc>
+   <ProcDb>3</ProcDb> 
+  </Panel>
+ </View>
+ </Screen>
+<!-- ************************************************************************ -->
+<!-- ************************************************************************ -->
+
