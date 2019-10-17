@@ -1,7 +1,27 @@
-# rtop Design
+# rtop Design v0.1
 ## Table of Contents
 - [Introduction](#introduction)
 - [Architecture](#architecture)
+  - [Building blocks](#building-blocks)
+    - [System interfacing](#system-interfacing)
+    - [Business logic](#business-logic)
+    - [User interface](#user-interface)
+    - [Error handling](#error-handling)
+  - [How do subsystems interact?](#how-do-subsystems-interact)
+    - [Viewing of process information](#viewing-of-process-information)
+    - [Configuring process viewing](#configuring-process-viewing)
+  - [Extensibility](#extensibility)
+  - [Tooling](#tooling)
+    - [Language choice](#language-choice)
+    - [Linux API](#linux-api)
+    - [C++ style guidelines](#c-ctyle-guidelines)
+    - [Version control](#version-control)
+    - [Debugging](#debugging)
+    - [Testing](#testing)
+    - [Distribution](#distribution)
+    - [Logging](#logging)
+    - [Development tools](#development-tools)
+    - [Third party libraries](#third-party-libraries)
 - [Design](#design)
   - [Overview](#overview)
   - [Architectural considerations](#architectural-considerations)
@@ -16,7 +36,7 @@
     - [UI classes](#ui-classes)
     - [Key dictionary](#key-dictionary)
     - [Callbacks](#callbacks)
-    - [Logging](#logging)
+    - [Logging](#logging-using-boost)
     - [Configuration management](#configuration-management)
     - [Keyboard and mouse input](#keyboard-and-mouse-input)
   - [Analysis through use cases](#analysis-through-use-cases)
@@ -30,64 +50,63 @@
 
 ## Introduction
 
-This is a design document, it details the design of some version of **rtop** with [these requirements](Requirements.md). This is meant for use by any developer who wants to understand/modify the rtop code. There are some prerequisities for this document to be well understood. It is assumed that
+This is a design document, it details the design of **rtop** version 0.1 guided by these [requirements](Requirements.md). This is meant for use by any developer who wants to understand/modify the rtop code. There are some prerequisites for this document to be well understood. It is assumed that
 
 - developer is familiar with system process monitors in general, whether on Windows (Task Manager) or Linux (htop, top etc). 
-- developer knows what a [Linux API] is, knows what we mean by [POSIX]() or [SuSv3]() compliant
+- developer knows what a [Linux API](https://www.amazon.com/Advanced-Programming-UNIX-Environment-3rd/dp/0321637739/ref=pd_sbs_14_t_0/146-1285804-3553013?_encoding=UTF8&pd_rd_i=0321637739&pd_rd_r=77634f80-b533-4cc6-846a-6d1224f1e90a&pd_rd_w=9hn11&pd_rd_wg=jlWXS&pf_rd_p=5cfcfe89-300f-47d2-b1ad-a4e27203a02a&pf_rd_r=B867YQYV8ZSW30CT361V&psc=1&refRID=B867YQYV8ZSW30CT361V) is, knows what we mean by [POSIX](https://en.wikipedia.org/wiki/POSIX) or [SuSv3](https://en.wikipedia.org/wiki/Single_UNIX_Specification) compliant
 - developer is familiar with C++ and C and has basic knowledge of data structures such as list, hash tables and trees. 
 
-This document talks about two things - the architecture and design of rtop. In the architecture section, a broad overview of the main subsystems of rtop is provided with suitable references to the important requirements pertaining to the visual structure and functionality of rtop. Also provided is a list (in some cases with ratioale) of the tooling used in this project, so that the developer can jump start his/her own changes with minimal time spent on researching the tooling or replace some tools based on his/her own preferences. The design section details the subsystem design. We detail how each subsystem achieves its goals by describing in detail the rationale behind its decomposition into classes to achieve the desired functionality. Design alternatives will be discussed where ever possible. The language will be terse and diagrams will be used as a substitute of words. 
+This document talks about two things - the architecture and design of rtop. In the architecture section, a broad overview of the main subsystems of rtop is provided with suitable references to the important requirements pertaining to the visual structure and functionality of rtop. Also provided is a list (in some cases with rationale) of the tooling used in this project, so that the developer can jump start his/her own changes with minimal time spent on researching the tooling or replace some tools based on his/her own preferences. The design section details the subsystem design. ~We detail how each subsystem achieves its goals by describing in detail the rationale behind its decomposition into classes to achieve the desired functionality. Design alternatives will be discussed where ever possible~ (??). The language will be terse and diagrams will be used as a substitute of words. 
 
 If you want to try [rtop]() and see what it is capable of, to better understand this document, see the [README](../README.md)
 
 ## Architecture
 
-What is a text user interface? It is a user interface - the user can interact with it (i.e. manipulate it and also receive visual feedback). The visual feedback is all text based - all you can see on your screen is text. It may be tabulated/highlighted but that is pretty much the extent of it. When interacting with it, the user will typically be navigating across the screen and selecting some options. However, unlike the graphical user interface, navigation is restricted, in the sense that one can only move in quanta of horizontal characters and vertical lines on the screen. Text user interfaces are commonly used on today's [terminal emulators]() which emulate [character-based visual displays]() which did not have the capability of pixel level resolution. The limited spatial navigation capability may sound limited, but you may find that many text based user interfaces are quite rich - using just text highlighting and structured layout, a text user interface can have table, hidden menus and so forth. here is an example (may be??)
+What is a text user interface? It is a user interface - the user can interact with it (i.e. manipulate it and also receive visual feedback). The visual feedback is all text based - all you can see on your screen is text. It may be tabulated/highlighted but that is pretty much the extent of it. When interacting with it, the user will typically be navigating across the screen and selecting some options. However, unlike the graphical user interface, navigation is restricted, in the sense that one can only move in quanta of horizontal characters and vertical lines on the screen. Text user interfaces are commonly used on today's [terminal emulators](https://en.wikipedia.org/wiki/Terminal_emulator) which emulate [character-based visual displays](http://toastytech.com/guis/remoteterm.html) which did not have the capability of pixel level resolution. The limited spatial navigation capability may sound limited, but you may find that many text based user interfaces are quite rich - using just text highlighting and structured layout, a text user interface can have table, hidden menus and so forth.
 
-So what does it take to build such a text user interface (TUI). In the following sections we discuss the salient points in building the text interface for rtop which is deployable on Linux, specifically Ubuntu 16.04 LTS Desktop version 
+So what does it take to build such a text user interface (TUI). The following sections discuss the major points in building the text interface for rtop which is deployable on Linux, specifically Ubuntu 16.04 LTS Desktop version 
 
 ### Building Blocks
 
 
-TODO: should we relate our design to MVVM or MVC(don't even know what they are?)
+TODO??: should we relate our design to MVVM or MVC(don't even know what they are?)
 
-Every text interface can be thought of as consisting of multiple building blocks each of which perform a specific function. There are two major concerrns we are trying to address when building a text interface. 
+Every text interface can be thought of as consisting of multiple building blocks each of which perform a specific function. There are three major concerns we are trying to address when building a text user interface. 
 
-1. First is about how to build a text interface on the Linux systems? How are we going to visualize our display on Linux? How will be acquire input the the user provides? 
+1. How to build a text interface on the Linux systems? How to display information on a Linux system? How to acquire input from user's keyboard and mouse actions? 
 
-2. Second is about the specifics of the application or what is commonly referred to as the **business logic**. We must clarify as to how will be acquire and store the [information]() about processes? How will we layout this information? More importantly, how to design the system is a maintainable, extensible and clean manner?
+2. Second is about the specifics of the application or what is commonly referred to as the **business logic**. We must clarify as to how will be acquire and store the information about processes? How will we lay out this information? 
+
+3. How to design the system in a maintainable, extensible and clean manner?
+
+We address our concerns by first assigning them to different subsystems, which are described below
 
 
-We have decomposed the text user interface into following subsystems.   
+#### System interfacing 
+There are many ways one can obtain information about a process's properties. The Linux kernel maintains this information in kernel data structures. Linux offers an API \(see [procfs](#accessing-and-parsing-proc-database) in design section\) that allows users to access this information by reading process specific files. This information must be acquired at regular intervals or asynchronously (on user input), stored at one place where it can be efficiently accessed or manipulated (for example sorted).
+ 
+System interfacing module's job is to provide a simple API (to be used by other modules) that abstracts away the details of how the process specific information is acquired. 
 
+One solid reason for hiding the OS specific details of how process information is accessed is **portability**, how process information is layed out and therefore accessed may differ across different revisions or distributions of Linux kernel as well other Unix-like OSes (??citation). Second reason is that it makes the development work more modular and therefore efficient. 
 
-#### System Interfacing 
-There are many ways one can obtain information about a process's properties. The Linux kernel maintains this information in kernel data structures. Linux offers an API surface (more on this in design section) that allows users to access this information by reading process specific files. This information must be acquired at [regular intervals]() or [asynchronously]() when user invokes certain commands, stored at one place where it can be accessed efficiently or acted upon (potentially sorted).  
+#### Business logic
+This module concerns itself with how the information is layed out (how many views?, what is in each view). This part usually follows in a straightforward manner from the [user interface requirements](Requirements.md#user-interface). It also concerns itself with user actions. What happens on [wrong input](Requirements.md#handling-bad-input)? Error handling. How to manage conditions that can potentially cause the system to crash? How to recover from bad inputs and crashes? It also concerns itself with how the user uses the system. What are all the features accessible to the user?
+
+So the business logic module draws heavily on the functional requirements. What the user can/cannot do? What constitutes the bad input? How is bad input handled? This module also orchestrates the actions of the other modules to achieve the desired functionality. 
+ 
+The reason for existence of this module is to separate the rules/logic from the object on which they act upon. This module is similar to the *model* in the [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design pattern. 
+
+#### User interface
+This module is concerned with managing the mechanisms underlying the display of text user interfaces on Linux systems, and how to acquire input through mouse and keyboard. It is also held responsible for performance concerns pertaining to speed of acquisition of input and generation of output. For example, there should not too much of a delay from a key press to it being detected by the system or delay between instruction to layout information and it being displayed on screen. 
+
+This module's job is to abstract away the lower level details such as configuring and managing terminal emulators on Unix-like system and provide a 
+flexible API that allows one to build a sufficiently detailed layout of the interfaces, one that can be extended easily. 
  
 
-So our system interfacing module abstracts away the details of how the process specific information is acquired, and offers an API to easily access this information. 
-
-One solid reason for hiding the OS specific details of how process information is accessed is **portability** & **maintainability**. The way in which process information is accessible across different revisions of the Linux kernal, as well as across different distributions of Linux (??citation needed) and across distributions that are Unix like. Coming to the portability issue, some of these problems can be solved by using POSIX/SuSV3 compliant API, which is confirmed to by all Linux distributions.
-
-Secondly, it in general makes development faster, as other people can work on it independently. 
+One important benefit that this module allows is simplifying the task of the business logic to create layouts and capture user input through use of its API. This simplifies the business logic significantly and hence reduces the overall complexity of the system. Secondly it increase portability of the business module, by allowing it to use the same API across different terminal emulators and different systems. If we want to display the text user interface on a different terminal emulators, we only need to generalize this module to handle that, the business logic remains unware of which terminal emulator is being used to display that information. This module is an amalgamation of the *view* and *controller* in the [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design pattern. 
 
 
-#### Business Logic
-This module concerns itself with how the information is layed out (how many views?, what is in each view). This part usually follows in a straightforward manner from the requirements. It also concerns itself with user actions. What happens on wrong input? How to manage conditions that can potentially cause the system to crash? How to recover from bad inputs and crashes? It also concerns itself with how the user uses the system. What are all the features accessible to the user?
-
-So the business logic module draws heavily on the functional requirements. What the user can/cannot do? How is bad input handled? What consitutes the bad input? This module orchestrates the actions of the other modules to achieve the desired functionality. 
- 
-
-#### User Interface
-This module is concerned with managing the mechanisms underlying the display of text user interfaces on Linux systems, and how to acquire input through mouse and keyboard. It abstracts away the lower level details and provides a flexible API that allows one to build a sufficiently detailed layout of the interfaces, one that can be extended easily. It is also concerned with ensuring that both acquisition of input and generation of output are performed sufficiently fast. For example, there should not too much of a delay from a key press to it being detected by the system or delay between instruction to layout information and it being displayed on screen. 
-
-To do its job, this module will deal with mechanism associated with correctly configuring and managing the terminal emulators found on Unix like systems. 
- 
-
-One important benefit that this module allows is simplifying the task of the business logic to create layouts and user input in a more intuitive manner. This simplifies the logic of the business module significantly and hence reduces the overall complexity of the system. Secondly it increase portability of the business module, by allowing it to use the same API across different terminal emulators and different systems. If we want to display the text user interface on a different terminal emulators, we only need to generalize this module to handle that, the business logic remains unware of which terminal emulator is being to present that information.  
-
-
-#### Error Handling
+#### Error handling
 
 This is a subsystem which is concerned with how to handle error conditions generated in the various subsystems and the overall operation of the program. It concerns itself with understanding the sources of errors and the actions that need to be taken to mitigate them. The error handling will depend on the specifics of the function/class etc, but in general the module will try to do one of three things
 
@@ -95,46 +114,48 @@ This is a subsystem which is concerned with how to handle error conditions gener
 2.  take some corrective measures
 3.  log and crash so that some debug information is accessible to the developer. 
 
-Most the work that this module concerns itself with is logic that recognizes error conditions, defining error messages, defining the log format and interacting with logging framework. Usually it is the case that as we get deeper into design, we obtain more information about errors and then we enhance the design of this subsystem gradually to handle those cases. 
+This module contains logic that recognizes error conditions, defines error messages, defines log formats and interacts with logging framework. The development of this module progress with design as more error condition or cases are uncovered. 
 
-At the minimum, one needs a logging system (more on this in design section).  
+So this modules job is to define errors and handle them in appropriate ways such as ignoring, exiting the application, logging etc. No matter what it does, having a logging (read more on [logging](#logging-using-boost) in design section) is a minimum requirement. 
 
-It is must to handle errors properly. No system is perfect even at ship out, it helps to have logging so that error can be uncovered as the software runs. Even during integration testing (before shipping things out), logging helps immensely to resolve issues. 
+The most important benefit that error handling provides is proper logging, which helps in uncovering bugs during development as well post shipping. 
 
 ### How do subsystems interact?
 
-To better understand how rtop works, it will be instructive to understand how the subsystems (as described above) interact?. We describe two use casesto be instructive.  
+To better understand the working of rtop, it is important to understand the interaction between its different subsystems. The discussion is at a very high level, and the goal is ??
 
-#### Passive Viewing of Process Information
-Let us suppose the we are viewing process information (getting updated every 1 sec). We have certain properties that are being displayed, and all we are allowed to do is either scroll up/down or sort the processes. 
+#### Viewing of process information
+This is somewhat passive activity where the user is able to view the periodically updated (say every second) process information. Occasionally the user may interact with the view either scrolling through the process list or clicking on some specific property list to change the sorting criteria. 
 
-During regular updates, information is travelling from the **system interfacing module** to the **user interface module**. This is quite a bit of information. Each process row can consistute upto 25 fields, where each one may be a string of size upto 10 characters. So that is 250 bytes per process, and there are typically 100's of such processes. So 25-100KB of data is flowing **systerm interfacing module** to **user interface module** every second 
+The data flow during these 3 situations is described below. 
 
-Although not completely intra-module flow, but data is also flowing from the kernal to the **system interfacing module**, as it is reading the process information using the kernel API. 
+1. Periodic updates: During a periodic updates, the business logic initiates a read of system information from the system interfacing module. It is estimated that ~25-100KB of information travels between the system interfacing and business logic modules (25 property fields per process, 10 characters per field and 100's of such processes). The data is then transferred from the business logic to the user interface module for display. Although not part of the application, there is information travel between the kernel databases and the system interfacing module. 
 
-Sorting involves user selectin one of the process properties using a mouse click. There are two choice one must consider here, the data flow for both cases is provided
-1. Case 1: Sorting only the information that is being displayed currently. In this case, the **business logic** which has access to the displayed information, sorts the processes internally and refreshes the display. It only needs to know which property to sort (which it receives by recognizing the mouse click event from the **user interface module**), and send the new layout to the **user interface module**. The **system interfacing module** is not involved in this sequence
+<img src="images/arch_graphical_update.png" width="400" heigh="400"></br>
+**Fig. 1** Inter-module data flow during a periodic graphical update
 
-2. Case 2: First acquiring fresh process information and then sorting. In this case, the **busines logic** updates its internal database of process information, the applies the new sorting criteria (acquired from **user interface module**) and then refreshes the display (by sending updated layout to the **user interface module**). So there is information flow from **user interface module** to **business logic**, and back and forth between **business logic** and **user interface module**.    
-
-
-Scrolling involves the user pressing a down/up arrow key which causes the display to be updated appropriately. The **business logic** receives this key input and acts to updates its internal database, it then sends the updated display back to the **user interface module**. So primarily there is information flow back and forth between **user interface module** and **business logic**
- 
-
-[diagram depicting data flow]()
-- 3 subsystems
-- double arrows, single arrow with varying thickness
-- enough arrow length to display text on side of it
-- short and precise and consistent naming of data packets
-- descibe scenario underneath, for each of the interaction diagram
+2. Scrolling the process property list: When the user scrolling through the process property list, the key input information travels from the user interface module to the business logic module. The business logic module perform the required changes to its representation of displayed data, and sends back the new position of the scroll bar to be displayed by the user interface module. There is no data flow into or out of the system interfacing module. 
 
 
-#### Configuring Process Viewing 
-The user is allowed to alter the which properties are visible and even rearrange them. The user carries out a set of key presses to achieve the desired objective of configuring the panel appropriately. All of these actions are relayed to the **business logic**, which then updates its internal databse and communicates with the **user interface module** to display the changes on the screen. So all the key press information is traveling from the **user interface module** to the **business logic**, and the updated display information traveling back.  
+<img src="images/arch_scrolling.png" width="400" heigh="400"></br>
+**Fig. 2** Inter-module data flow during scrolling
+
+3. Sorting the process property list: When the user selects a particular property to change the sorting criteria, the mouse input information travels from the user interface module to the business logic module. The business logic module instructs the system interface module to acquire new process information ([why read process information for a sort request?](#sorting-by-selecting-property-using-mouse)) resulting in data flow from system module to business logic. The business logic module sorts this information and passes it onto the user interface module. 
+
+<img src="images/arch_sorting.png" width="400" heigh="400"></br>
+**Fig. 3** Inter-module data flow during sorting
+
+
+
+#### Configuring viewable process information 
+The user can configure the user interface to view only those process properties that are relevant to him/her. They may also want to arrange the properties in an order more suitable for them to view. The user carries out a series of key presses that result in activities as described in demonstration in [README](../README.md#rtop-demo)
+
+During all such activities the data flow is occuring only between the user interface module and the business logic module. As soon as the business logic receives a key input, it updates its internal database and sends fresh display information back to the user interface module. The data flow would be similar to the diagram corresponding to the scrolling use case. 
+
 
 
 ### Extensibility  
-TODO: revise
+TODO??: revise
 
 We would like to build upon the exiting version viewing of additional information. 
 1. is to allow the system to [add new process properties to view]
@@ -151,20 +172,22 @@ Any new view should allow some intraview navigation , for example can be scroll 
 ### Tooling
 
 
-#### Languages Choice
-This project has been written in C++. For writing terminal interfacing code, we have called ncurses C libaries API from within C++ (??is this portable?) A very good reason, for developing this application in C++ is that it is object oriented and yet quite fast. Second major reason is simply to apply C++ skills
+#### Language Choice
+The source code will be implemented exclusively in C/C++. The terminal interfacing code is written using the Ncurses library API (which is in C). It is called from within C++ (how??, is this portable??). Build scripts are written in [make](https://www.gnu.org/software/make/) compliant language. Configuration files are written in XML (v1.0, UTF-8). 
 
+C++ is a widely used language with very good object-oriented support. The other reason for choosing C++ is simply for improving in C++. 
 
 #### Linux API
-Since we are confined to linux, we use linux system calls to call into kernel databases and read in process or perform other activities. The only criteria we must apply is that accessing this API should not require  admin permission, and second that it should be not jeopardize [portability]() of the subsystem using it. The latter is not a hard requirements, as we can manage portability using system introspection and then using system specific API. But it is certainly more clean to use portable API 
+
+Since this project aim to deploy this application on mostly Linux based systems, linux system calls and GNU C calls are used to read process information inside of the kernel database. The choice of specific API calls is determine by whether they acquire special privileges making them either inaccessible from either user space or by a non-admin user. Second, is that their use should not jeopardize **portability** across different Linux system and times (near future and past Linux distributions). To avoid such problems, an attempt will be made to follow best practices such as using POSIX compliant system calls. 
 
 #### C++ Style Guidelines
 TODO: need to add specific guidelines
 
-We have followed [google style guidelines](), and some of the important ones we have used are listed here, to make your life easier when navigating the code
+[Google C++ style guidelines](https://google.github.io/styleguide/cppguide.html) will be followed. Some of the important ones have been listed below. The main purpose is to ensure good **maintainability**
 
 
-- google c++ style guidelines, source tree heirarchy
+- google c++ style guidelines, source tree hierarchy
   - namespace organization 
   - class naming, class declaration
   - class public, private organization
@@ -173,34 +196,42 @@ We have followed [google style guidelines](), and some of the important ones we 
   - standalone functions, globals, static
   - commenting and doxygen documenting: comments on classes, functions, globals, standalone functions
 
+
+
 #### Version Control
 
-We have use git for revision control 
+Git has been used for revision control. Since this is a small scale project with a single developer at this time, features are added in a sequential fashion. 
 
-Since we have only one devloper working on things, we prefer to build the rtop in a linear fashion. We have a single master branch on which all development and release happens. Each release is tagged for easy access, if one wants to use a specific release of rtop, they can download the release using the tag. Each release contains its requirements, installation instructions and design documents (such as this one). 
+The development work happens on the *dev* branch, this includes code implementation, testing and documentation. 
+Once a feature is reasonably complete which means its code is working and tested well and its documentation is in good shape, we merge the changes back into the *master*. This merged commit, is a new release easily identifiable using a tag. The tags are named according to a numbering scheme of the form *x.y*, where *x* is version number followed by *y* which is features number. 
 
-Sometimes, we may get stuck on a feature during the course of development, while we can make progress on some non-interfering piece of code (i.e. which will not created any merge issues). In such a case, we create a temporary branch to finish work on this new features, while we sort out issues with the features on the main branch. When we have resolved the issue with the main branch, we commit the result, and merge the temporary branch back into master. Temporary branches are not available as part of the repository.  
+This process is clarified through the diagram below
 
+<img src="images/dev_workflow.png" width="800" heigh="400"></br>
+**Fig. 4** Git workflow for rtop
+
+Any user and developer then can access these release commit using the tag for their use. One would find that each release has its own README, REQUIREMENTS and DESIGN documents. Usually one can access them starting with the README, the links are consistent in that sense.
+
+Sometimes, one may get stuck on a feature during the course of development, while progress can be made on some non-interfering piece of code. In such a case, a temporary branch is created off the *dev* branch (not shown in the diagram). Once work is complete on the *temp* branch, it is merged back into the *dev* branch (NOT *master*)
 
 #### Debugging 
 
-We have used GNU tools for debugging purposes, this primarily includes [gdb](). For more rigourous testing, we will use [valgrind]() for  measuring memory leaks. One of the most important tool we have for debugging is the logging system since text user interface are difficult to debug using tools like gdb(??citation).
+Debugging is performed using GNU tools. This primarily include GNU debugger, [gdb v7.11 or greater](https://www.gnu.org/software/gdb/). For checking memory leak, the [valgrind](http://valgrind.org/) tools suite is used. The [logging](#logging) system which is part of the application is the most important tool, as using gbd to debug a TUI is cumbersome. 
 
-We have used gdb version 7.11 or greater
+
 ?? How have we done the debugging
 ?? lcurses_g option
 
 #### Testing
 
-TODO: Formal testing not done yet
+TBD
 
 #### Distribution
 
-The complete source code as well as the version history of the master branch is accessible rtop repository at [www.github.com/kasliwalr/rtop](www.github.com/kasliwalr/rtop) under MIT license. It has been tested for use on Ubuntu 16.4 LTS. Following the installation intructions in README will allow generation of an executable (requires make utility) using the make file in the source tree
-
-The source code is organized as follows
+At the minimum, for each release, the complete source code, along with installation/use instructions, requirements and design documentation will be provided under *MIT License*. These will be available on the master branch of the [rtop project repo](https://github.com/kasliwalr/rtop). The source code organization is described below
 
 ```
+# source tree
 .
 ├── bin
 ├── config
@@ -214,161 +245,170 @@ The source code is organized as follows
 
 |Source Tree Object| Description|
 |-----------------|-------------|
-|src| this contains the source code i.e. the .cpp files|
-|include|header files|
-|src/Makefile|make recipe|
-|bin|build tree top level directory. single directory containing the generated executable|
-|config|configuration file to be consumed by the application|
-|tests|testing code|
+|src| folder containing source code i.e. the *.cpp* files|
+|include|folder containing header files|
+|src/Makefile|make recipe file|
+|bin|top level directory of build tree|
+|config|folder containing configuration files|
+|tests|folder containing testing code|
 
 
-TODO: 
+In future, for each Linux distribution we deploy to, an appropriate package distribution method will be used. 
+
+TODO??: 
 - add license notices to source code
 - also need to check if license is compatible with license of tooling used. 
  
 #### Logging
 
-Logging is our main tool for uncovering bugs. There are many logging systems out there with different features sets, open or closed source, language support on so forth. We state our main criteria for logging systems
+There are many logging systems with different properties, such as open vs close source, free, language support etc. For this project, the main criteria driving selection of a logging system are as follows
 
 1. should support formatted output
 2. should be able to print thread specific information
 3. should have a C++ API
-4. should be well open source ideally copy-left like GPL, but non-copy FOSS is also fine (a general requirements for using 3rd party code)
-5. should have a strong user base (which validates its usefulness and reliability) and is well supported
-6. should have a stable API 
+4. should be open source, ideally [copy-left](https://www.gnu.org/licenses/copyleft.en.html) like GPL, but non-copy FOSS is also fine (a general requirements for using 3rd party code)
+5. should be reliable (signified by a large user base) and well supported
+6. should have a stable API (create less problems for maintaining code base)
+7. compatible with Linux based systems (which is the target system)
 
 
-We have used the [Boost.Log](#third-part-libraries) packge of the vastly popular [Boost]() libaries
+For this project, [Boost.Log](#third-party-libraries) package has been chosen for logging. 
 
 #### Development Tools
 
 The development work will be done on an Ubuntu 16.04 LTS, with the following tools
-1. gnu compiler collection: gcc 5.4.0 or greater
-2. vim 7.4 or greater. It is used for stnadard editing and assumes the most common vim commands. You could use a lesser version if you like
+1. gnu compiler collection: [>= gcc 5.4.0](https://gcc.gnu.org/)
+2. vim editor: [>= vim 7.4](https://www.vim.org/). 7.4 or greater. It is used for standard (but speedy) editing and assumes the most common vim commands. You could use a lesser version if you like
  
 
 #### Performance Measurement
 
-TODO: what to measure? Memory leaks, performance bottlenecks. how to measure?
+TBD
 
-#### Third Party Libaries
+#### Third Party Libraries
 
-1. Ncurses
+1. Ncurses: TBD
 
-2. Boost.Log
-- licensing
-- how does it work
-- how big is it
+2. Boost.Log: TBD
 
-3. Pugixml
-- what is it
-- how does it work
-- how big is it
-
-Tooling
-- libraries
-  - discussion on ncurses. why use it? which version of it to use. what does it do? licensing. **pg30**
-    - **pg 112**
-  - boost for logging. how does boost work. licensing.  
-  - pugixml? why use pugixml. what are the alternatives?
-
+3. Pugixml:TBD
 
 ## Design
 
+This section dives into the design of rtop application. It will serve as a guide for current or future developers to understand the code better, adding new features to it and to improve its performance. The discussion starts at the bird's eye view of the system, and from there dives deeper into implementation details (with rationale) of specific modules, component classes and functions. System function is illustrated through studying the interactions of the software components while exercising the important use cases. 
+
 ### Overview
 
+From a systems perspective, at the top-most level, the rtop application interacts with 3 external entities (as shown in the diagram below) They are a 1) a persistent database, 2) process file system (*procfs*), and 3) the user. The rtop application interacts with the database during initialization to load information and before exiting to save information. *procfs* provides process information. The user consumes application data by viewing the results displayed by the application. The user also provides commands to the application through the text based user interface. 
 
-<img src="images/dfd_level1.png" width="600" heigh="500">
-
-
-In this design document, the rationale behind the design and architecture of rtop will be explained. The purpose of writing this document is that another developer (which includes myself in the future) can easily understand the structure of the application and can easily extend or change the application to improve upon it. It will include a discussion on the architecture and implementation of important components of the system. Use cases are used to explain how the different components come together to provide the feature functionality. 
-
-
-Looking at the application from a systems perspective, we focus on the top most level. The major components consist of the **rtop app**, some sort of **persistent information** database that it interacts with during initialization and at the time of exiting the application, the **procfs** (`/proc` file system) which provides the process information, and the **user** who provides commands through the text-based user interface that the application provides, and views the results layed out by the application. 
-
-The data flow diagram below clarifies the flow of data between the different components
-<img src="images/dfd_level0.png" width="400" heigh="350">
-Description dfd\_level0: Lets start at the topmost level. As you know, rtop is a linux desktop app. This user directly interacts with this app, and data is exchanged between the user and the app through the keyboard and screen interfaces. On the computer, the app interacts with the file system to access configuration information which is stored in a file, and more importantly it user the Linux system api such as the `/proc` file system to access process information. This is a special feature of linux, which makes it easy for us to access information internal to the kernel. 
-
-Data flow towards the app in case of `/proc` and `configuration` database. This is a very natural flow of data as you can think of the app as an interface that makes system specific information viewable to the human user. 
+<img src="images/dfd_level0.png" width="400" heigh="350"></br>
+**Fig. 5**Data flow between external environment and the rtop application. User and rtop exchange exchange data through the keyboard and screen. On the computer, rtop interacts with the file system to access configuration information which is stored in a file. It also interacts with the */proc* file system to access to read process information. *procfs* is a special feature of Unix-like system that make it easy to access information residing in kernel database. 
 
 
-Before we move on, there are some meta design goals that are useful to briefly pause upon and consider, these generally fall under optimum design and good design practices etc.
+Lets focus on a level below. In the diagram below, we see the rtop application decomposed into submodules that we talked about in the [architecture section](#building-blocks). They are a useful abstraction to understand how the application functions, all of the classes we talk about later can be classified to be residing inside one of these modules based on the kind of function that they perform. 
+
+
+<img src="images/dfd_level1.png" width="600" heigh="500"></br>
+**Fig. 6**Data flow between the different submodules of rtop, and between the submodules and external entities. One can roughly ascertain the role the different submodules play from this data flow. Business logic reads and configuration information and initializes all other modules. It frequently interacts with both the system interface to read process information and the user interface to display that information. It the user interface alone that interacts with the user, while the exclusive job of system interface module is to handle reading of information from *procfs*
+
+
+
+Before moving on, lets pause and consider some meta design goals, these generally fall under optimum design and good design practices etc.
  
-1. Maintainability: For future maintenance work, code should be well commented (not overcommented). It should be as simple as possible, which means that the software should be decomposed well into modules which serve a clearly defined purpose. The classes within these modules, should follow the single respinsiblliy principle (SRP) - meaning they should do one thing and one thing only. The interfaces should be thin with fewest possible arguments i.e. consistent with information hiding. Only need to know information should be shared. And finally, it is very important that whereever it makes sense we should apply abstraction and simplify the use. this is a very important point, as in future one would like to change the implementation but not the interface - abstraction itself, so that other modules' code need not be changed
+1. Maintainability: For future maintenance work, code should be well commented (not over-commented). It should be as simple as possible, which means that the software should be decomposed well into modules which serve a clearly defined purpose. The classes within these modules, should follow the single responsibility principle (SRP) - meaning they should do one thing and one thing only. The interfaces should be thin with fewest possible arguments i.e. consistent with information hiding. Only need to know information should be shared. And finally, it is very important that where-ever it makes sense we should apply abstraction and simplify the use. this is a very important point, as in future one would like to change the implementation but not the interface - abstraction itself, so that other modules' code need not be changed
 
 2. Extensibility: rtop could be extended in many ways. One may want to deploy it across different Unix derivatives, therefore the design should enable easy customization across potentially different APIs for accessing process information. One may want to add/modify features such as changing the key semantics - which key press does what. One may want also want to run it completely off the touch pad/mouse, or the keyboard. Besides these, one may want to tweak the existing algorithms or data structures to improve performance. These changes should not lead to major redesign 
 
-3. Clean design: The design should be natural. We have not gone for unnecessary constructs if we don't need to. 
+3. Clean design: The design should be natural. Implement a simple data structure that does the job rather than a fancy one. Its easier to understand and maintain. 
 
-4. Performance: This aspect is still undefined. At this point specific performance criteria have not been defined to avoid premature optimization interfering with design. Any optimizations have been noted apporpriately. In general, the application is deemed adequate performance wise if it displays information at regular intervals and uses memory within limits 
+4. Performance: This aspect is still undefined. At this point specific performance criteria have not been defined to avoid premature optimization interfering with design. Any optimizations have been noted appropriately. In general, the application's performance is deemed adequate if its able to display information at regular intervals and uses memory within limits (say a few megabytes). 
   
 
 ### Architectural considerations
 
+These are some design decision that can be classified as sitting at the boundary between architecture and design. They govern important ways in which we approach the various design problems we face. 
+
 
 #### Separate thread for key input
-There are two major activity loops in the application that run on independent threads. One loop is responsible for periodic graphical updates while the other handles user's key inputs. Handling user's key input in a separate thread allows optimization of user experience by ensuring that none of the user's key inputs are missed because the system is busy performing graphical update.  If the CPU is switching between the two threads suffiently fast, the key input thread will be able to capture all of user's key inputs.
 
-From the perspective of understanding the application design, note that any activity happens in one of these two activity loops. The diagram further clarifies the operation of the two activity loops running in two separate threadss  
+The application has two major activity loops that run on independent threads. One loop is responsible for periodic graphical updates while the other handles user's key inputs. Handling user's key input in a separate thread allows optimization of user experience by ensuring that none of the user's key inputs are missed because the system is busy performing graphical update.  If the CPU is switching between the two threads sufficiently fast, the key input thread will be able to capture all of user's key inputs.
 
-<img src="images/activity_loops.png" width="800" heigh="1200">
-**DESCRIPTION??**
+<img src="images/activity_loops.png" width="600" heigh="1200"></br>
+**Fig. 7** Activity loops of rtop. Each loop runs on a separate thread. 
 
 
-It has to acknowledged that this scheme is suboptimal, although key inputs are being captured on a separate thread, a similar problem as running everything on one thread, is encountered. If the key press results in some time consuming graphical update, it will block the key input thread in that activity, if during this period a key input arrives, it will not be registered. To the user, it will seem like the interface is unresponsive, especially for frequent key inputs that cause time consuming graphical updates.
+It is important to be aware of the limitation of this scheme. Although key inputs are being captured on a separate thread, a similar problem as running everything on one thread is encountered. If the key press results in some time consuming graphical update, it will block the key input thread (inside of the `resolveKey(int key)` function) in that activity, if during this period a key input arrives, it will not be registered. If the user is pressing the keys frequently, it will seem that the interface is unresponsive. 
 
-How fast can key input come in, key processing speed depends on the keyboard, and it ranges from 30 - 60 key prresses per seconds, that roughly translates to 1 key press every 15-30 msec. If we need to handle they key presses, our key input loop should capture these key presses as soon as possible, and get ready again to read the next key input. On one system, the speed was measured to be approximately 30 key presses per second
+To improve upon the design, lets also determine how fast can the key input come in? Reports ([1](https://blog.wooting.nl/what-influences-keyboard-speed/), [2](https://danluu.com/keyboard-latency/)) suggest that for typical keyboards it ranges between 30-60 key presses per second, that translates to 1 key press every 15-30 msec. To handle key presses at this speed, the key input loop should do minimal processing and get ready as soon as possible to wait for the next key input. The key input speed was measured on the development system, and found to be approximately 30 key presses per second. 
 
-Here is the reference code
+Here is the reference code for doing that
 ```
-
+ // using ncurses api
+ 
+ int main(){
+ // ncurses initialization
  initscr();
  raw();
  noecho();
  keypad(stdscr, TRUE);
  set_escdelay(100);
+
  int c;
- int count_arrow = 0; 
+ int count_arrow = 0;    // holds number of key presses
  while(1)
  {
-   c = getch();     
-   if (c == KEY_F(10))
+   c = getch();         // capture key input
+   if (c == KEY_F(10))  // exit on F10
     break; 
    count_arrow++; 
  }	
   
  endwin();
- std::cout<<"KEY_DOWN pressed "<<count_arrow<<" times\n";
+ std::cout<<"KEY_DOWN pressed "<<count_arrow<<" times\n";  
 }
 ```
+While the program was running, a key was pressed  (not F10 since that exits from the program) and kept pressed continuously for 10 seconds. Then, F10 was pressed to exit the program. On exit, the program prints the number of key presses registered in the 10 second duration. Note that the measurement loop wastes little time doing anything else, and most time is spent waiting for key input. One can say that if key inputs were faster, and the loop not fast enough, we could be underreporting the numbers. If you look at the computation performed, its one comparison, and one increment, this should not take more than a few cycles, and on a GHZ CPU, a few nanoseconds at most. Even if we take into account thread switching, probably not more than a few milliseconds, so it should work for speeds of upto 100HZ or more. Also the numbers align well with the above mentioned reports. 
 
+#### Key's context
 
-**EVENT DRIVEN ARCH??** 
+To understand application design, it is necessary to understand the somewhat abstract idea of key's context.The application should be viewed as consisting of different contexts. Actions such as exiting the application or viewing a separate view (a view covers the entire terminal window) belong to the application context. Actions such as navigating within a view by accessing its different panels ( a view is divided into several spatially separate regions called panels) belong to the view context. Finally actions such as browsing/modifying an item list within a panel belongs to the panel context.
 
-
-#### Key contexts
-
-To understand application design, it helps to understand a somewhat abstract idea of key context.The application should be viewed as consisting of different contexts. Actions such as exiting the application or viewing a separate view (a view covers the entire terminal window) belong to the application context. Actions such as navigating within a view by accessing its different panels ( a view is divided into several spatially separate regions called panels) belong to the view context. Finally actions such as browsing/modifying an item list within a panel belongs to the panel context.
+Therefore, each key has a context in which it makes sense, and the context alone knows how to interpret the key. Also, note that the same key may have meaning in multiple contexts, this has the effect that a single key press leads to actions in several contexts. 
  
-To summarize, each key has a context in which it makes sense, and the context alone knows how to interpret the key. The same key may exist in multiple contexts allows us the ability to operate in several context with a single key press. 
+#### Single key, single context but many actions
 
-#### A single key, single context but many actions
+So how does the application actually interpret the key. This information required to interpret the key resides in the UI object. A UI object may be required to resolve more than 1 key, it certainly may be required to perform several actions on receiving this single key. 
 
-A single key press may lead to multiple actions through invoking of multiple object methods. This information is obviously encoded in an object associated with a key context (such as view, panel etc). This information is handled conveniently using a data structure which associates with a particular key a list of `Action` objects (an `Action` is a tuple that encodes an object's identity and one of its methods). This object can be passed on to the context object at the time of initialization. In this regard, one should note that it would not be useful to hard code the actions that are to be triggered in the object. Let's explain the problem through an example. Let's refer to a key input managed at some view object. Suppose, on this input, 5 different actions need to be performed. If we hardcoded these actions inside the view object, it will be hard to maintain (as we'd have to make many different view objects with different hardcoded actions) and therefore error prone. Thus having as many view object types as there are variations in key input process is a total unreasonable solution
+One potential strategy is to devise a specialized UI object that handles a particular set of keys and carries out a particular set of actions. Adding a new key-actions pair requires creation of a new type. This would lead to a proliferation of the types of UI objects based on the number of key-action combinations (which can run into 100s).  This is clearly not scalable for maintainability. 
 
-**LINK TO ACTIONS, DATA STRUCTURE??**
+Another strategy is to allow the UI object to hold this information in another object, one similar to a dictionary. This dictionary object represents key context, and it can be identified using a *universal unique identifier*(UUID, see its use later [callbacks](#callbacks) discussion). Importantly it contains an actual dictionary (a hash table), containing a list of key values, and their corresponding list of actions. Note that there can be more than one action associated with a single key. You'll find the implementation details in the discussion on [key dictionary](#key-dictionary). This example illustrates the idea. Assume, that a key input arrives at UI object such as a view. On this input 5 different actions need to be performed. The key dictionary associated with this UI object, is asked to resolve the key (its a little more complicated, see [State machines](#state-machines)), which it will do by looking it up in its lookup table. If the key is found, all the actions associated with it will be invoked in a sequential manner.
 
+This strategy offers a major improvement, one can easily define a new key dictionary object that encodes a certain behavior. These objects can then be used to initialize the UI object at the time of application startup. There is now no need to create new types of UI objects, only a single type, say `View` type can hold different key dictionary objects, and able to resolve different sets of keys. For example `View1` object of type `View` resolves <kbd>F1</kbd> a certain way, and `View2` object of the same `View` type, resolves <kbd>F1</kbd> some other way because they hold different key dictionary objects. 
+
+#### State machines
+
+The mechanism described above has be a little more general, this is needed to address the following problem. Sometimes, the set of relevant keys and their associated actions may change. You may recognize that this is a very common situation, for example when a press a specific button on a digital watch, watch screen content changes, and now the same button has a different meaning, in-fact many not just one, but many different keys have their meaning changed. The upshot is that the set of keys and their associated actions which are tied to a UI object are not constant, they may change as well. 
+
+This problem is handled using a state machine. So instead of a `KeyDict` associated with a UI object, we have a [state machine of `KeyDict`](#key-dictionary) objects associated with each UI object. The states in the state machine are the object UUIDs, with the restriction that these UUIDs all must be associated with objects of type `KeyDict`. 
+
+State machines are used for other purposes in the application. There are state machines for [UI objects](#ui-classes), specifically state machines of view and panel types. These state machines help the UI object determines as to which of its child object has [focus]()
+
+A state machine's API does 3 basic things. It allows initialization of the state machines' transition table, performs the transitions based on some input - specifically key input and allows accessing state information by other modules in the application. 
+
+
+#### Section on Focus
+
+TBD
 
 #### UI layout performance
 
 
-Although performance optimization is not a priority at this time, there is one area where upfront optimization is well advised. To understand it need it is important to understand, how graphical updates are done in this application. The Ncurses library has been used for managing the interaction with the user, so it is important to understand how Ncurses performance graphical layout.   
+Although performance optimization is not a priority at this time, there is one area where upfront optimization is well advised. To understand its need, it is important to understand how NCurses performs graphical updates.
 
 
 Ncurses introduces some abstractions between the data to be put on screen and actual physical screen. The crux of the matter is to use these abstraction properly so as not to unnecessarily slow down the graphical updates. 
 
-Ncuses has an abstraction called **WINDOW**, which is an object that represents a section of the physical screen. Internally, it maintains a representation of the **phyiscal screen** (which contains the last read state of the phyiscal screen) and a **virtual screen** (which contains the state that the user wants to render on the physical screen). A **WINDOW** represents a section of the **virtual screen** and a screen may be (and usually is) subdivided into multiple windows - we call this a **tiled** screen (divided into spatially non-overlapping regions). So lets say you tiled a screen, you modify a small region of the screen corresponding to one or more WINDOWs and now you want to put on the information ont the screen. 
+NCurses internally maintains a representation of the **physical screen** (the state of the physical screen when last updated), and a **virtual screen** (which is the screen's state that the user wants to render on the physical screen). Ncuses also has an abstraction called **WINDOW**, which is an object that represents a section of the screen, to be more accurate, a **WINDOW** represents a section of the **virtual screen** and a screen may be (and usually is) subdivided into multiple windows - we call this a **tiled** screen (divided into spatially non-overlapping regions). So lets say you tiled a screen, you modify a small region of the screen corresponding to one or more **WINDOW**s and now you want to put the information onto the screen (top row Fig. 8 ) 
 
 
 The function to perform this update has the following prototype 
@@ -377,191 +417,196 @@ wrefresh(WINDOW* win);
 ```
 On each `wrefresh` two internal functions, `woutrefresh(WINDOW* win)` and `doupdate` are called, the first one puts the information in the WINDOW data structure into the virtual screen. The `doupdate` then compares the physical and virtual screen and pushes the difference onto the physical screen. So instead of everything being redrawn, only the region specific to the changed window is updated. This brings us to the first optimization
 
+<img src="images/performance_ncurses.png" width="800" heigh="800"></br>
+**Fig. 8** Data flow during graphical updates using NCurses API
 
-Optimization 1: Divide the view, into separate windows, such that separate activities map to different windows. This allows us to update only specific windows and reduce the cost of physical screen update
+Optimization 1: Divide the screen, into separate windows, such that separate activities map to different windows. This allows us to update only specific windows and reduce the cost of physical screen update. This is clarified in the middle row of Fig. 8
 
 
-It was mentioned above that each `wrefresh` corresponds to two actions. If two window udpates are happening relatively quickly (so that the user may not notice), one should avoid calling `wrefresh` for each window. This brings us to the second optimization
+It was mentioned above that each `wrefresh` corresponds to two actions. If two window updates are happening relatively quickly (so that the user may not notice), one should avoid calling `wrefresh` for each window. This brings us to the second optimization
 
 
 Optimization 2: Where ever possible instead of multiple `wrefresh`, do multiple `woutrefresh` and a single `doupdate`. 
 
-
-The ideas above are described in the diagram below 
-<img src="images/performance_ncurses.png" width="800" heigh="800">
-**DESCRIPTION??**
-
-
 #### Screen resizing
 
-One must understand that the application runs on terminal emulators rather than real terminals, and thus unlike real terminals, the size of the screen can change. Screen resizing is a possible user action. This user action is not handled by the terminal emulator, meaning that although the window size is changed (by the windows manager), a signal to the client process is sent. It is the job of the client process (i.e the application) to handle this appropriately. Not handling it can be deterimental to the application. If we don't notify the application, it will continue to assume the old window size, and will try to render information on regions that do not exist anymore. 
+One must understand that the application runs on terminal emulators rather than real terminals, and thus unlike real terminals, the size of the screen can change. Screen resizing is a possible user action. This user action is not handled by the terminal emulator, meaning that although the screen size is changed (by the windows manager), a signal (SIGWINCH) to the client process is sent. It is the job of the client process (in this case, rtop) to handle this appropriately. If we don't notify rtop, it will continue to assume the old window size, and will try to render information on regions that do not exist anymore. 
 
-Therefore handling it is a necessity for the quality of user experience. If you run such an application in debugger (such as gdb) and configure it to handle signals, you will see something like this
+If you run such an application in debugger (such as [gdb](#debugging)) and configure it to handle signals, you will see something like this
 
 ```
 > handle SIGWINCH print
-> r CONFIG_FILE
+> r CONFIG_FILE           # run rtop_v0_1
 # window resized
 Thread 1 "rtop_v0_1" received signal SIGWINCH, Window size changed.
 terminate called without an active exception
 ```
 
-Once, the application has the screen size information (size and position of windows), it can scale and reposition the layout as necessary. Obviously extreme resizing events should be handled appropriately as well, one cannot expect to resize the windows to very small size.
-
-As of now, this is not handled in the application, but is a high priority item. In the current version, the application crahses on a screen resize. 
-
-#### State machines
-
-The `StateMachine` [class]() is designed to store object universal unique identifiers (uuids). In the application, state machines are used to hold objects of type [Key Dictionaries](), [View]() and [SimplePanelData]()
-
-Its API allows initialization, obtaining prev and current state information and transitioning to next state based on input. You might find additional API such as `stale` and `reset`, these might be deprecated in future, and it is not deemed necessary to explain them at this time. 
+Once, the application has the screen size information (size and position of windows), it can scale and reposition the layout as necessary. From a usability perspective, it seems appropriate to prevent extreme resizing of the screen such as sizing it to be very small. 
 
 #### Accessing and parsing /proc database
 
-All unix based systems makes process information through the pseudo file system, called proc file system or procfs for short. For each process running on the system, there is one directory in the `/proc` named by the pid of the process, for example init process (with pid 1), will have its information located inside directory `/proc/1/`
+To access process information, we rely on the [proc file system](https://en.wikipedia.org/wiki/Procfs), available on all Unix based systems. On linux, the process information is distributed amongst multiple text files inside subdirectories of `/proc` directory. There is a unique subdirectory per process, and its named with the process id (PID) value. For example to access information associated with the *init* process which as PID of 1, files in directory `/proc/1/` will be accessed.
 
-There are various files inside the directory, where the information is distributed, we are interested in 3 files, namely
+rtop draws its information from 3 files - `/proc/pid/stat`, `/proc/pid/cmdline` and `/proc/pid/status`. 
 
-`/proc/pid/stat`, `/proc/pid/cmdline` and `/proc/pid/status`
-
-
-These files are in the text format and the specific format for each may depend on the particular system. Once we open a file, we can parse the text file and store the information however we like, but there are some important consideration when updating the database for all the processes (active or zombie).  Since processes are getting added and deleted all the time, we have to be careful of race conditions while parsing the `/proc` directory. 
+Parsing details pertaining to  ?? are not covered. In this section, one is not concerned with the specific format of a given file, one can always devise a suitable strategy to parse a given text file format. Rather, the discussion focuses on the race conditions that might be present when accessing the proc file system. 
 
 
-Accessing /proc database can generate race conditions. Here is an example...
+The algorithm for accessing and parsing process files is quite basic. We read the contents of the `/proc` directory using the `opendir` and `readdir` system call. The `opendir` call provides a pointer object that allows scanning through the directories' contents, `readdir` performs the scan through the `/proc` visiting each process specific subdirectory in turn, accessing files inside of it and parsing them. However since processes are getting added and removed asynchronously, one has to careful in using these system calls and understand the guarantees they offer. On this note, *The Linux Programming Interface by Kerrisk, 2nd* says
 
-How do we handle these race conditions, and what are the costs of doing that?
-
->If the contents of a directory change while a program is scanning it with readdir(),
-the program might not see the changes. SUSv3 explicitly notes that it is unspecified
-whether readdir() will return a filename that has been added to or removed from
-the directory since the last call to opendir() or rewinddir(). All filenames that have
-been neither added nor removed since the last such call are guaranteed to be
-returned.
+>If the contents of a directory change while a program is scanning it with readdir(), the program might not see the changes. SUSv3 explicitly notes that it is unspecified whether readdir() will return a filename that has been added to or removed from the directory since the last call to opendir() or rewinddir(). All filenames that have been neither added nor removed since the last such call are guaranteed to be returned.
 
 
-[How fast is the /proc database updated?](https://unix.stackexchange.com/questions/74713/how-frequently-is-the-proc-file-system-updated-on-linux)
-
-This discussion implies that the directory `/proc` is populated when we open the directory for reading. So we take one snapshot at the time of opening. Now when we start scanning it using readdir, we inspect each process's pid directory. It is at this time, again that this information is updated, if we try to access the directory pid in /proc, but the process by that pid does not exist, the open call will return an error. New process may be added while you are scanning readdir, in such as case, you may not scan through it i.e. you may not know if a process has been added or you may. 
+Therefore the system calls provide no guarantee in this matter. This forces us to add logic to handle such situations. 
 
 
-Lets make some design decisions here - 
-
-1. if we have scanned through a process, and before we finished scanning the process was killed, is that ok? sure. we may be a bit outdated, but we'll pick it up at the next refresh
-
-2. a new process was added since we opened `/proc`, as said above, we may or may not encounter it, that is ok too. we'll pick it up at next refresh. Addition of new process does not mess up our scan order in any way, meaning we are not going to go through it again
-
-3. if a process we read was killed before we finished scanning, and a new one was added with the same id and we happen to pick it up, would be have duplicate, this is quite undesirable. There is low proabability of such an event, as athe read is usually complete within a few 10s of msec at most, while it is UNix policy to delay the reassignment of recently deceased process id. 
-
-4. A process was present when we opened /proc, but not found somehow, when we tried to access its files any of its files. This could only means that while we were parsing the files, the process died, 
-
-5. Another possibility is that while we have opened the /proc/pid/status file, are reading it, the process died, so assiming the kernel data structures associated with the file are being destroyed, how are we able to read the file status, if they are not being destroyed, are we interrupting the process status in some way??
+One must also understand that files inside the proc file system are not actual files, they are just an abstraction, what is actually happening when a file is opened, is that information supposed to be inside it is read immediately from the kernel database. 
 
 
-Here is our current strategy, we read the /proc file, we iterate through the directory entries. Then we access each of status, cmdline and stat files, if we are unable to access of of the file, we interpret it to mean that the process has died. Therefore we skip its information and move onto the next entry. For us, any process that died after we read the entry is still alive and we display its last obtained information. 
+This discussion implies that the directory `/proc` is populated when we open the directory for reading. So we take one snapshot at the time of opening. Now when we start scanning it using `readdir`, we inspect each process's pid directory. It is at this time, again that this information is updated, if we try to access the directory pid in /proc, but the process by that pid does not exist, the open call will return an error. New process may be added while you are scanning readdir, in such as case, you may not scan through it i.e. you may not know if a process has been added or you may. 
 
+A summary of all the different scenarios, their implications and the decision that algorithm makes to handle them are described. 
+
+**Table 1**
+
+|Scenario| Analysis|Decision|
+|-------|----------|--------|
+|after reading process files in /proc/pid/, but before completing scan, process is killed|the algorithm will print the information, however it will be a bit outdated, but most likely the user won't notice. most certainly it will be removed at the next scan|no change, works as is|
+|after opening `/proc` and beginning scan, a new process is added. `readdir` does not guarantee that it will show up in the scan|if the algorithm misses it, it will be read at the next scan. if it's picked in this scan, that's a good outcome too|no change. works as is|
+|process subdirectory was present when we opened `/proc` but died before scan reached it| if the algorithm tries to open file in `/proc/pid`, it will return an error. on error, algorithm interprets the process to have died, and ignores it|no change. algorithm correctly ignores the dead process. works as is|
+|process `/proc/pid` was read. before scan finished, it was killed, another process added by same pid, and then `/proc/pid` was read again before scan completes|this is highly unlikely because linux does not assign a recently deceased process's pid to another process for some time, while the read finishes much quicker on 10s of msec. If it does happen, probably the dead process's information is overwritten with alive (new) process information|no change. works as is|
+|a process dies during reading of `/proc/pid` files| if algorithm is reading the last file, it would not report any error and report the process as alive - same as 1st case. if algorithm is reading the 1st or 2nd file, it will complete the read, then when it goes onto next file (2nd or 3rd), it will report an error|only in the case that last file is being read do we report an alive process. it will be updated at next scan. no change works as is|
+
+So here is our simple algorithm
+
+```
+read procfs:
+ get pointer to /proc 
+ for each /proc/pid in /proc:
+   read /proc/pid/status, /proc/pid/stat, /proc/pid/cmdline 
+   if no error in opening any of the  files:
+     store information in database
+```
+For us, any process that died after we read the entry is still alive and we display its last obtained information. 
 
 ### Before we begin
 
-We will frontload information about a few important classes and their relationships, so that we explain the data flow in the different uses cases things start to fall in place easily. You can skip ahead if you like, and come back and refer to this section
-
+Before moving onto the description of the application functioning, it is useful to get familiar with some important classes that make up the application. It helps to know about them as when data flow in different use cases is explained, things start to fall in place easily. You can skip ahead to [use case analysis](#analysis-through-use-cases) and come back refer back to this section. 
 
 #### UI Classes
 
-Three types of user interface classes, cooperate together to handle all key inputs from the user and requests from other modules to perform graphical updates. [ScreenManager](), sits at the top of the heirarchy, it references one or more objects of the [View]() class. At the lower most level is the [SimplePanelData]() class. A `View` class references or or more `SimplePanelData` class objects. There is also the [ProcViewPanel]() which is also an panel of special type that references other simpler panels
+Three types of user interface classes, cooperate together to handle key inputs from the user and graphical update requests from business logic modules. These classes are organized in a hierarchical fashion. [ScreenManager](html/classrtop_1_1ScreenManager.html), sits at the top of the hierarchy, it references one or more objects of the [View](html/classrtop_1_1View.html) type. At the lower most level is the [SimplePanelData](html/classrtop_1_1SimplePanelData.html) type (which contains data and methods associated with a panel). A `View` class references one or more `SimplePanelData` class objects. There is also a specialized panel type called [ProcViewPanel](html/classrtop_1_1ProcViewPanel.html) that references other simpler panels such as [BrowsePanelData](html/classrtop_1_1BrowsePanelData.html). 
 
 These class relationships are depicted through the class diagrams below. Note that in these diagram references to other types of objects are also made, which will be discussed shortly  
 
-<img src="images/ui_classes.png" width="800" heigh="800">
+<img src="images/ui_classes.png" width="800" heigh="800"></br>
+**Fig. 9** UI Classes and their relationship to other UI classes and StateMachines
 
 
-
-When consider key input processing, one should consider these classes that encode the context. They consist of key dictionary state machines, that are actually responsible for resolving (performing actions associated with a key input) the key input for that particular context. They also consist of a lower level UI object's (such as a `View` in case of `ScreenManager` or a `SimplePanelData` in case of a `View`) state machine, which process the key input to update the current UI object in focus. 
-
+These classes functionally belong to the [UI module](#user-interface), and play central role in key input processing. Each of the UI class consist of [key dictionary state machines](#key-dictionary)(see below) that help these classes resolve the key input. They also consist of child UI object state machines (such as a `View` in case of `ScreenManager` or a `SimplePanelData` in case of a `View`), which helps the UI object determine which child UI object is in focus, and thus [the receiver of key information](#key-input)
 
 #### Key Dictionary
 
-As mentioned above, the raison d' taire of a [KeyDictionary]() is to hold keys and their associated actions. A key dictionary is an object which is essentially a hash map of keys and their associated list of [Actions](). Each key may have more than one action associated with it. Thus a key dictionary encapsulates all possible actions associated with all keys active in a given state of a particular context (by context we mean the `ScreenManager`, `View`, `SimplePanelData`). If the state changes, so does the key dictionary 
+As mentioned above, the [raison d' taire of a key dictionary](#single-key-single-context-but-many-actions) is to hold keys and their associated actions. The [KeyDict](html/classrtop_1_1KeyDict.html) class implements the key dictionary. Any UI object is able to resolve keys because its consists of [state machines](#state-machines) of `KeyDict`s. The `KeyDict` object essentially consists of a hash map of keys and their associated list of actions (implemented by [Action](html/classrtop_1_1Action.html) class). Thus a key dictionary encapsulates all possible actions associated with all keys active in a given state of a particular context (by context we mean the `ScreenManager`, `View`, `SimplePanelData`). If the state changes, so does the key dictionary 
 
-[Action]() is a data structure that holds the id of the object and its associated method name. These pieces of information are required to invoke any method associated with a specific object (by accessing them using function pointers stored in another object called [MemFuncPDict]() ). In the diagram we see how at the screen level, key dictionary state machine works. 
+[Action](html/classrtop_1_1Action.html) is a data structure that holds the UUID of an object (an object can be of any type) and its associated method name, which is the name of some public method of the type to which the UUID identified object belongs. These pieces of information are required to invoke any method associated with a specific object as explained in the discussion on [callbacks](#callbacks) 
 
-<img src="images/keydict_sm.png" width="800" heigh="400">
-**DESCRIPTION??**
+The working of a key dictionary state machine is illustrated by the following example and diagram below
 
-In the initial state, we have a key dictionary where only two keys makes sense, these are `F2` and `F10`. F2 changes the view from the current one to a differnt one, but it also changes the key dictionary where F10 /f2 are not recognized. If one presses, `ESC` they return back to the start state. On pressing F10 in the start state, one simply exits the applciation. 
+
+<img src="images/keydict_sm.png" width="800" heigh="400"></br>
+**Fig. 10** Transitions of a `ScreenManager`'s `KeyDict` state machines. The key dictionaries associated with the states are show at the left and right ends. 
+
+In the diagram we see how at the screen level, key dictionary state machine works. 
+In the initial state, we have a key dictionary where only two keys makes sense, these are `F2` and `F10`. F2 changes the view from the current one to a different one, but it also changes the key dictionary where F10 /F2 are not recognized. If one presses, `ESC` they return back to the start state. On pressing F10 in the start state, one simply exits the application.
+
 
 #### Callbacks
 
-As mentioned above object methods pointers are stored in an object of type [MemFuncPDict](). It contains a bunch of hashmaps (as shown in the figure below), where each hashmap contains a list of object\_uuids (keys), and their associated callbacks (which are pointer to methods belonging to the object). The hashmaps belong to a certain type meaning that each map actually contains callbacks associated with methods of a certain class type. 
 
-If one wants to invoke a method associated with a specific object, the simply pass on the `Action` object to the invoke method of `MemFuncPDict` object which will then appropriately resolve it 
+All keys associated actions are eventually invoked by calling the `invoke` method of object of type [MemFuncPDict](html/classrtop_1_1MemFuncPDict.html). This object contains hashmaps that stores two types of information. One hashmap has object UUIDs as keys, and object pointers as values. The other type has function names as keys and function pointer as values. There is one hashmap for each object type, and one hashmap for storing methods that belong to a certain object type. 
+The `MemFuncPDict` object is initialized at application startup by registers specific objects and their method.
 
-<img src="images/memfuncPDict.png" width="600" heigh="600">
-**DESCRIPTION??** 
+<img src="images/memfuncPDict.png" width="600" heigh="600"></br>
+**Fig. 11**Design of `MemFuncPDict`. The two types of dictionaries it holds are shown
 
+When the `Action` object is passed to the invoke method, it uses `Action.uuid` to determine the object, and `Action.func_name` to determine the function pointer, and combines the information to invoke the public method of the object. 
+
+Method pointers are referred to as callbacks, the benefits of having callbacks is that any UI object using its key dictionary can call any object anas its associated registered method. 
+
+`MemFuncPDict` is part of the machinery responsible for resolving the key inputs. 
 
 #### Process database under lock and key
 
-although we have not discussed it yet, but we envision the process data base to be read by one thread and written to by another thread depending on the use case (discussed further down), this is a classic scenario for generating race conditions, and therefore we need to put the process database under lock and key. Any process that needs to read the process database must acquire a mutex associated with it, once done reading it should release it and so on. 
+The rtop design envisions multiple threads, which may all want to write to the internal process database. Such a scenario is a recipe for creating race conditions. Therefore process database has been put under lock, any process that needs to write to the process database must acquire the lock and release it when done. One must note that this locking mechanism has not been optimized. 
 
-This idea needs to be fleshed out in future versions.
+#### Logging using Boost
 
+For logging, *Boost.Log* has been used. In the following discussion, its use as a debugging tool is described. If you want to understand Boost.Log's API, refer to its [documentation](https://www.boost.org/doc/libs/1_63_0/libs/log/doc/html/index.html) 
 
-#### Logging
-
-
-Logging is used as debugging tool. The [Boost.Log]() library part of the [Boost]() library, is used to log key pieces of information. For logging a multithreaded application, the thread identity as well as time stamps are necessary - the Boost.Log api provides this piece of information. Some customization of log message was done to make the nesting of function of calls more human-readable. The customization details are as follows 
-
-Entry and exit into every function of every class is logged. To accomplish that one needs to add the following  code at the beginning of the function body
+The most fundamental piece of information that logging provides is function call nesting. To achieve that, entry into and exit from every function of every class is logged. To accomplish that one needs to add the following  code at the beginning of the function body
 
 ```
 log_spacer.addSpace();       
-BOOST_LOG_SEV(lg, debug)<<log_spacer<<"--> KeyDict-"<<key_dict_uuid<<"_resolve::";
+BOOST_LOG_SEV(lg, debug)<<log_spacer<<"log_message";
 ```
 
-The `log_spacer` object belong to the [logSpacer]() class that keeps track of white space that added to it and deleted from it. When we enter the funtion, we add space to this object, when this object is passed to the logger on the subsequent line, that space is prepended to the log message, this has the effect of indenting the message to the right. If the calls are nested, their log messages will be shown clearly nested due to the indentation.
+Since calls are heavily nested, it often becomes diffcult to read for a deeply nested call stack, what belongs in the stack and what is outside. Therefore, log messages were customized  by passing a special object of type [logSpacer](html/classlogSpacer.html) to the logger. This object keeps track of white space added to/deleted from it. When a function is entered, space is added to this object, when this object is passed to the logger on the subsequent line, that space is prepended to the log message. This has the effect of indenting the message to the right. If the calls are nested, their log messages will be shown clearly nested due to the indentation. 
 
-Another important feature of `log_spacer` is that it keeps the white spaces associated with each thread separate, so function call heirarchy within threads is correctly indented in log messages
 
-For the indenting to work properly, a log message is also added at the end of the function body, to delete the white space, like so
+Two crucial pieces for information are necessary to debug rtop. One is the specific thread on which a particular action was carried out, and second the temporal order of actions. Therefore we need both thread identity and time stamps. These facilities are provided by the Boost.Log library. 
+
+An important feature of `logSpacer` is that it keeps the white spaces (for indenting) associated with each thread separate, so function call nesting within threads is correctly indented in log messages. 
+
+For indenting to work properly, a log message added at the end of the function body must delete the white space. This is accomplished by writing the following code just before the exit point 
 ```
-BOOST_LOG_SEV(lg, debug)<<log_spacer<<"<-- KeyDict-"<<key_dict_uuid<<"_resolve::";
+BOOST_LOG_SEV(lg, debug)<<log_spacer<<"log_message";
 log_spacer.delSpace();
 ```
-If a function has multiple return points, these code snippets must be added before each return.  
+If a function has multiple exit points, these exit code snippets must be added before each.
 
-There is some overhead associated with logging, so log level should be set appropriately while debugging.  
+
+Boost.Log also allows setting of logging levels, which means that one can make it more or less selective when logging information. If most debugging is complete, and performance needs to be optimized, the logging level can be set to the most selective i.e. FATAL, this will log minimal information. If more debugging information is desired, it is set to DEBUG. Offcourse, the developer must pass the appropriate log level to the logger, so that messages are printed appropriately. Using the FATAL logger for all messages defeats the purpose of using selective logging. 
 
 #### Configuration Management
 
 
-Configuration refers to two types of information, first refers to the system and the other refers to the application. System configuration includes such pieces of information as the number of CPUs on the system, operating system API and capabilities etc. This piece of information must be know before application start to properly parse the relevant pieces of information. Application configuration includes such pieces of information as key encodings (which may be changed), working with different keyboards. 
+Configuration refers to two types of information, first refers to the system and the other refers to the application. System configuration includes such pieces of information as the number of CPUs on the system, operating system API and capabilities etc. This piece of information must be know before application start. Application configuration includes such pieces of information as key encodings which are used to [initialize the key dictionaries](). 
 
-The system configuration is managed in two ways, certain specific modules are responsible for introspecting the system at start time. During this these modules read system specific information and use this information to apporpriately initialize the different class objects
+The system configuration is managed in two ways
 
-Then there are configuration files which are distributed with the application, these files describe the user interface layout and the key encodings it works with. This allows one to easily alter the behaviour of various UI contexts at the level of screen/view/panel. These files are parsed at start time, and the information again is used to properly initialze the different objects. 
+Some types (belonging to the [business logic](#business-logic)) are responsible for introspecting the system at start time. They parse system specific information and use this information to apporpriately initialize the different class objects
 
 
+Other types (also from *business logic*), parse configuration files, that describe the user interface layout and the key dictionary definitions that are used to initialize the UI objects. These configuration files are distributed with the application. 
+ 
 The benefits of having having system configuration information that any changes in hardware/platform in the future, will only require us to make chnages to code responsible for doing introspection, we can build the UI logic independent of that. So it improves our applications portability and maintainability. The second configuration management allows us to tweak our UI layout without any code changes.
 
-Currently we have a single file that holds UI related information, and its parsing logic can be much improved.  
+Currently there is a single file that holds UI related information, and its parsing logic can be much improved.  
 
 
 #### Keyboard and mouse input
 
-Although not currently implemented, this is part of version 0.1. Mouse click events are handled are also handled by the key input thread. If you are using ncurses, the way its done is as follows
+
+*The case of <kbd>ESC</kbd> key*</br>
+To process each individual key press, NCurses API is used to the set the terminal in raw mode. In this mode, each key input is processed individually, as opposed to line mode, where one line (indicated by series of character followed by end-of-line character) is processed at a time. 
+Ncurses defines easy to use macros for key value corresponding to special keys, for example `KEY_DEL` for <kbd>DEL</kbd> key. 
+ 
+However, it should be noted a special key is not a single character value, instead it is a sequence of values, the first of which is the value corresponding to the <kbd>ESC</kbd> key. So whenever an ESC character is encountered, the system is configured such that it waits for the following character, to interpret the special key correctly. If it times out while waiting, then only the ESC key is reported. This makes processing of <kbd>ESC</kbd> key somewhat delayed. A user would experience a perceptible delay between pressing an <kbd>ESC</kbd> key and the associated action. This delay however is tunable, one can reduce the waiting time down to 100 msec, so that it is imperceptible to the user. One however has to make sure that under no circumstances a false negative is generated i.e. a special key is pressed, but the system does not wait long enough for the character after `ESC`, and prematurely declares that an <kbd>ESC</kbd> key has been detected.
 
 
-Ncurses has a special key code for mouse click, this key is defined as a constant, in the ncurses library, it is called `KEY_MOUSE`. You capture it just like any other key, if you click any key on the mouse, the `getch` will return `key = KEY_MOUSE`. 
+*Mouse click processing*</br>
+Mouse click events are also handled by the [key input thread](#separate-thread-for-key-input). Ncurses has a special key code for mouse click, this key, called `KEY_MOUSE` is defined as a constant. You capture it just like any other key, if you click any key on the mouse, the `int getch()` API will return `key = KEY_MOUSE`. 
 
-To process recognize and process individual button on the mouse, you need to define them using the `mousemask` method, like so 
+To recognize and process individual buttons on the mouse, you need to define them using the `mousemask` API, like so 
 
 ```
  mousemask(BUTTON1_CLICKED, NULL);
 ```
 Ncurses makes it easier to define these mouse button masks, by defining constants in the ncurses library. You could OR them, to allow the system to process multiple events. 
 
-After having obtained the key, you need to obtain the specific event associated with a specific button press. Ncurses stores the specific event, to access it you pass `getmouse` an event object, on successful return, the event will have been stored in the event object you passed. Then you could AND it with specific masks to determine the kind of button pressed by the mouse.  
+After getting the key, you need to obtain the specific event associated with a specific button press. Ncurses stores the specific event on a mouse button press internally. To access it, you pass `getmouse(MEVENT*)` API an event object. On successful return, the event can be found in the passed `MEVENT` object. Then you could AND it with specific masks to determine the kind of button pressed by the mouse.  
 
 ```
 case KEY_MOUSE:
@@ -575,23 +620,14 @@ case KEY_MOUSE:
           printw("BUTTON1 CLICKED\n");
        }
 ```
-#### The case of <kbd>ESC</kbd> key
-
-One can perform key capture by using NCurses API to set the terminal emulator in raw mode. In this mode, each key input is processed individually, as opposed to line mode, where one line (indicated by series of character followed by end-of-line character) is processed at a time. 
-Ncurses defines easy to use macros for key value corresponding to special keys, for example `KEY_DEL` for <kbd>DEL</kbd> key. 
- 
-However, it should be noted that the special keys is not a single character value, instead it is a sequence of values, the first of which is the value corresponding to the <kbd>ESC</kbd> key. So whenever an ESC character is encountered, the system is configured such that it waits for the following character, to interpret the special key correctly, if this waiting times out, then only the ESC key is reported. This makes processing of ESC key somewhat delayed. A user would experience a perceptible delay between the pressing an ESC key and the associated action. This delay however is tunable, and one can reduce down to 100 msec, so that it imperceptible to the user. One however has to make sure that under no circumstances do we accept a false negative i.e. a special key is pressed, but we don't wait for the following character and thus deem the key not to be the special key but the `ESC` key
-
 
 ### Analysis through use cases
 
-Four use cases will be considered. First one tackles the periodic graphical update that is happening continuously every few 100-10000msec. The second use case describes the chain of events when a user provides a key input. The third use cases deals with data flow between elements of the user interface and the final use cases describes how system data base is accessed when special actions such the sorting of displayed information is requested by the user. In each cases, we describe the class APIs that are exercised, and the flow of data between the classes involved in generating that behaviour.
+Four use cases will be considered. First one tackles the periodic graphical update that is happening continuously every few 100-10000 msec depending on the application configuration. The second use case describes the chain of events when a user provides a key input. The third use cases deals with data flow between elements of the user interface and the final use cases describes how process data base is accessed when special actions such the sorting of displayed information is requested by the user. In each case, we describe the class APIs that are exercised, and the flow of data between the classes involved in generating that behavior.
 
 #### Periodic refresh
 
-In this use case...
-- there is not user input, the application is showing the process view panel, which is being periodically refreshed by some business logic. This activity is handled in the thread responsible for periodic updates. The columns class invokes its read method which updates the process data base. 
-The periodic refresh is achieved through a two step process, first the `Columns` class object performs a database update, and second, the top level UI object i.e. the `ScreenManager` is asked to form a graphical update
+There is no user input. The application is showing the process view panel, which is being periodically refreshed. This activity is handled in the [thread responsible for periodic updates](#separate-thread-for-key-input). The periodic refresh is achieved through a two step process, first the [Columns](html/classrtop_1_1Columns.html) class object performs a database update, and second, the top level [UI object](#ui-classes) i.e. the `ScreenManager` is asked to perform a graphical update
 ```
 pclms->read();
 screen->refresh();
@@ -599,113 +635,84 @@ screen->refresh();
 
 The dataflow that occurs during the database update is summarized in the diagram below
 
-<img src="images/dataflow_refresh.png" width="800" heigh="400">
+<img src="images/dataflow_refresh.png" width="800" heigh="400"></br>
+**Fig. 12** Data flow during periodic graphical update
 
-**DESCRIPTION??**
 
+[Columns::read](html/classrtop_1_1Columns.html#a02a1991e906c74706dac193b2b6f2018) calls [ProcInfo::update](html/classrtop_1_1ProcInfo.html#acdb821aeef5a9fa279b99adf28f76b66). It passes on a list of string values that are names of process properties that need to be updated. There are potentially 10's of properties, but the method only passes properties that are visible, this is done to not unnecessarily increase the computational load and thus slow down the graphical update. The second argument will be discussed in a later use case. 
 
-[Columns::read]() calls [ProcInfo::update\(vector\<string\>, string\)](). It passes on a list of string values that are names of process properties that need to be updated. There are potentially 10's of properties, but the method only passes properties that are visible, this is done to not unnecessarily increase the computational load and thus slow down the graphical update. The second argument will be discussed in a later use case. 
-
-The [ProcInfo]() class has an internal reference to [ProcDb]() which is the type that holds the process database. When `update` is cllaed, it reads the information from the `procfs` and stores it in the database. It also updates the sorting information in the process database (discussed later). These are steps 3 and 4 in the dataflow diagram above. 
+The [ProcInfo](html/classrtop_1_1ProcInfo.html) class has an internal reference to [ProcDb](html/classrtop_1_1ProcDb.html) which is the type that holds the process database. When `ProcInfo::update` is called, it [reads the information from the procfs](#accessing-and-parsing-proc-database) (and stores it in `ProcDb`. It also updates the sorting information `ProcDb` (discussed [later](#sorting-by-selecting-property-using-mouse)). These are steps 3 and 4 in the dataflow diagram above. 
 
 At this point we have left the discussion on the internals of the process database, as these will be discussed at a later pointer when discussing sorting. 
 
-When the call to [ScreenManager::refresh()]() it invokes refresh methods of its child UI object that is currently in focus, similar calls are made recursively by the `View` and `ProcViewPanelData` class. One might wonder, how does the data reach the UI panels. [ProcViewPanel]() has a reference to the process database, which it accesses when [ProcViewPanel::refresh()]() is invoked by the parent `View` object. Therefore data flows from the process database to the `ProcViewPanel`, and from the `ProcViewPanel` to its constituent panels which actually display the data. These are steps 5,6 & 7 in the dataflow diagram. 
+Performing the graphical update involves a call to [ScreenManager::refresh()](html/classrtop_1_1ScreenManager.html#a95e9005896dbfb700ee175ed0a878e5c) which invokes refresh methods of its in-focus child UI object, similar calls are made recursively by the child (`View`) and its child(`ProcViewPanelData`) object. One might wonder, how does the data reach the UI panel object? [ProcViewPanel](html/classrtop_1_1ProcViewPanel.html) has a reference to the process database, which it accesses when [ProcViewPanel::refresh()](html/classrtop_1_1ProcViewPanel.html#a2fb73fd5a865d008aea9754830f5ad0e) is invoked by the parent `View` object. Therefore, data flows from `ProcDb` to the `ProcViewPanel`, and from the `ProcViewPanel` to its constituent panels which actually display the data. These are steps 5,6 & 7 in the dataflow diagram. 
  
-
-It is to be noted, that in the current implementation, that although the refresh works, it is not efficient. This issue will be addressed very soon. THe problem is that the complete screen (parent window) is being updated for updates to each constituent window.  
-
 
 #### Key input
 
-This represents the use case...
-nged. What we want to explore here is how keys are processed, how are they recognized, how are action associated with them taken, and how context changes are reflected in the choices of the key that are available
+This is a generic use case and encapsulates all events where a user provides a key input. The myriad possibilities for all the specific keys are not considered here, instead details are provided about mechanisms - how keys are recognized, how actions associated with them are invoked and how certain key inputs [change the context](#key-dictionary) in a given UI object. 
 
-
-This is a generic use case and encapsulates all events where a user provides a key input. The myriad possibilities for all the specific keys will not be considered, instead details are provdided about the mechanisms that kick in i.e. how keys are recognized, how actions associated with them are invoked and how certain key input change the context in a given UI object. 
-
-All key inputs are processed by the [key input activity loop](#separate-thread-for-key-input). Most of the time, this thread is waiting for key input. Once a key input is received, the received key is passed to the [ScreenManager::resolveKey(int)]() method which blocks until the key is resolved at all UI levels. 
+All key inputs are processed by the [key input activity loop](#separate-thread-for-key-input). Most of the time, this thread is waiting for key input. Once a key input is received, the received key is passed to the [ScreenManager::resolveKey](html/classrtop_1_1ScreenManager.html#af7ffd7b6a88a754850a43748d2a271c9) method which blocks until the key is resolved at all UI levels. 
  
 Each UI object handles the key in two ways 
 
-1. it resolves the key using its own `KeyDictionary` [state machine](). The key dictionary state machine resolves the key by looking it up in the current key dictionary and sequentially invoking all the [Action]() objects using the [MemFuncPDict]() class object. It should be mentioned that a few actions are compulsarily invoked, this handle update the state of the UI object's state machine that represent the key dictionaries and child UI objects. It should also be emphazied why there is a need for a key dictionary state machine rather than a single key dictionary. This is because sometimes pressing a certain key invalidates it and instead new set of key become relevant for the UI object. It working is explained in the section on [key dictionary](#key-dictionary)
+1. it resolves the key using its own [`KeyDictionary` state machine](#key-dictionary). The key dictionary state machine resolves the key by looking it up in the current key dictionary and [sequentially invoking](#callbacks) all the `Action` objects using the `MemFuncPDict` class object. It should be mentioned that a few actions are compulsorily invoked - updating the state of the UI object's [key dictionary and child object state machine](#state-machines). 
 
 
-2. it passes the key to the child object that currently has focus. In case of `ScreenManager`, the key is passed to the `View` object state machine, which will pass it to the current child object (which has the focus). 
+2. it passes the key to in-focus child object. In case of `ScreenManager`, the key is passed to the `View` object state machine, which will pass it to the current child object (which has the focus). 
 
 
-These set of calls are made recursively by the UI objects down the heirarchy and any action at all the UI levels are completed. The diagram below depicts the dataflow during passing of key value down the UI heirarchy
-
-If at any UI object level, the key is not recognized, it is simply ignored, but it is still passed to the UI object one level below if one exists. 
+These set of calls are made recursively by the UI objects down the heirarchy and any action at all the UI levels are completed. If at any UI object level, the key is not recognized, it is simply ignored, but it is still passed to the UI object one level below (if one exists). 
 
 
-<img src="images/dataflow_keyinput.png" width="600" heigh="400">
-**Description??**
-Let's try to understand the dataflow, the first call is to `ScreenManager::resolve(key)` passes the key information to `ScreenManager`'s key dictionary, which resolves it and passes on the list of actions to the global callback repository for invoking the functions associated with those actions. Next the `ScreenManager:resolve()` passes on the key to its child UI object, which is in focus. And as obvious from the data flow diagram, it carries out a similar set of actions, and the same thing goes on with the Panel expect that in the panel's case, there is not other child object to process the data. 
+<img src="images/dataflow_keyinput.png" width="600" heigh="400"></br>
+**Fig. 13**Dataflow during passing of key value down the UI heirarchy**. `ScreenManager::resolve` (step 2) passes key information to `ScreenManager`'s key dictionary, which resolves it and passes on the list of `Action`s to the callback dictionary [MemFuncPDict](/html/classrtop_1_1MemFuncPDict.html) (step 3) for invoking functions associated with those `Action`s. `ScreenManager:resolve` also passes on the key to its in-focus child UI object (step 4). 
 
  
 #### Changing settings
 
-Although this use case too is triggered by user's key input, it is of specific interest as it does not deal with accessing system information. Rather it deals with exchange of pre-existing data between two panels. This happens when for example we are adding new process properties to the ACTIVE PROPERTIES COLUMNS, so that they can be displayed on the `ProcViewPanel`. 
+This use case is a specific instance of the more generic [key input](#key-input) use case described above. In this use case, the focus is on understanding how exchange of data occurs between two UI objects such as two panels that hold the property names. Specifically, we consider the case of adding new process properties to `Active Properties` panel, so that they can be displayed on the `ProcViewPanel`
 
-Only the final step of adding the property in the ALL PROCESS PANEL to the ACTIVE PROCESS PANEL is considered. The specific property has been selected and the user presses the <kbd>ENTER</kbd> key. The usual series of steps associated with the key press take place, when the key is passed onto the ALL PROCESS PANEL, it resolves it by passing it onto its key dictionary which invokes [BrowsePanelData::insertIntoLeftNbr](). To handle this situation, each panel stores a references to its left and right neighbours. The `insertIntoLeftNbr()` method reads the string corresponding to the selected property, and passes the string to its left neighbour's [BrowsePanelData::insert(string)]() method. The neighbouring panel then dutifully inserts the new string into current cursor's position.   
+<img src="images/proc_settings_view.png" width="600" heigh="600"></br>
+**Fig. 14**Process Settings View. White entry indicates cursor position, Blue entry indicates that panel is in-focus as well as cursor position
 
-Note: It could alternatively have been implemented in the following manner. At the view level, read the in-focus panel's selected entry using some API, and then insert that entry into its left neighbour using some API. In this scenario, the individual panels need not hold references to their left and right neighbour. It makes more sense, as a panel should not be worrying about who its neighbour is, instead, the `View` class that stores the panels has the knowhow about how the panels' within it are arranged. However, we would need to work with callbacks of the form `(void *func)(string)` instead of one without any arguments like `(void *func)()`. 
+
+
+As shown in the Fig. 14 above, once the user has navigated to `Settings` view and selected the property in the right column (`All Properties` panel), pressing <kbd>ENTER</kbd> key will initiate this use case. Assuming all the steps 1-6 in Fig. 13 have taken place, the focus is on understanding the specifics of the steps 7-8-9, in context of this use case. In step 7, the key is passed onto `All Properties` panel. It resolves it by passing it onto its key dictionary (step 8 in Fig. 13) which invokes [insertIntoLeftNbr](html/classrtop_1_1BrowsePanelData.html#a2093d1381edb681b6169b12af4c6a33c). This method, access the references to the left neighbour of `All Properties` panel, and passes the property string (of the selected entry) to the left neighbor using the neighbor's [insert(string)](html/classrtop_1_1EditPanelData.html#adac83f7f48336cafe0d5d1c6ab06ca0c) API. The neighboring panel then dutifully inserts the passed string at the current cursor position. Note that the `insert` API is not stable, and will probably be changed in the future. 
+
+
+*Alternative implementation*</br>
+At the `View` level (step 4-5-6 of Fig. 13), read the in-focus panel's selected entry using some API, and then insert that entry into its left neighbor using some other API. In this scenario, the individual panels need not hold references to their left and right neighbors. It makes more sense, as a panel should not be worrying about who its neighbor is, instead, the `View` class that stores the panels has the knowhow about how the panels' within it are arranged. This implementation requires one to handle callbacks of the form `(void *func)(string)` instead of one without any arguments, like `(void *func)()` in the current implementation. 
  
 
 #### Sorting by selecting property using mouse
 
+This use case describes the sequence of events once a user forces the `ProcViewPanel` to display the property values in a sorted order, based on the selection of a specific property (provided using a mouse click). The [handling of mouse input](#keyboard-and-mouse-input) has been described above. 
+In brief, the input processing logic recognizes the type of mouse button pressed, if its a left button single click, it will determines its position on the `ProcViewPanel` and pass the button-click type and position to `ProcViewPanel`. The `ProcViewPanel` will then determine the column in which it lies, this determines the property according to which the sorting must be done. The `ProcViewPanel` will store this property name, to be accessed at a later time. The sorting property name value in `ProcViewPanel` is also initialized at application startup to some predefined value, so that even without the user input, there is a default sorting criteria. 
 
-Althoug not currently implemented, the next version will allow the user to select a property column in `ProcViewPanel` using a mouse click. This will result in refreshing of the display so that all property are sorted based on the sort order of the selected property column. 
+Once the sorting property has been determined, `ProcViewPanel` calls upon the [Columns::read](html/classrtop_1_1Columns.html#a02a1991e906c74706dac193b2b6f2018) method. You might recall that this method is also called during the [periodic refresh](#periodic-refresh) use case. As it turns out, sorting and database update are intertwined i.e. one cannot happen without the other. The reasons for having this arrangement are as follows
 
-The sequence of events immediately post mouse click are not described as they are not implemented yet, you may refer to the discussion on [handling of mouse events](#keyboard-and-mouse-input). 
+*Arguments for combining sorting and data reload*</br>
+The design decision to be made is that when a user request changing a sorting criteria, should we sort existing data or reload new data and then sort. It makes sense to reload data to present the latest information to the user. It would make little sense if the graphical updates are happening frequently, however if lets say, updates happen every 5-10 seconds, the user will not be satisfied with stale information, they would much prefer both sorted and fresh information. This means that sorting implies data reload. 
 
-Selection of property for sorting at startup: The input processing logic recognizes the type of mouse button pressed, if its a left button single click, it will determines its position on the `ProcViewPanel` and then determine the column in which it lies, this determines the property according to which the sorting must be done. It will then store this property name inside it, to be accessed at a later time.
-At startup, since there has been no trigger to acquire this property, we ensure that we initialize it.
-
-
-`ProcViewPanel` calls upon the `Columns::read` method. You might recall from the [periodic refresh]() use case, that this method is also called there. As it turns out sorting and database update are intertwined. The reason for having this arragement are as follows
-
-
-Why sorting needs to be done at every refresh?
-When a user does a mouse click, should we sort existing data or refresh the data and then sort. It made sense to refresh data to present the latest information to the user, it would make litle sense if the UI is getting updated quite frequently, however lets say the UI is getting update every 10sec and the user does a mouse click, they are obviously interested in the latest piece of information, so we choose to update for everytime a user clicks. 
-
-This implies that whenever sorting is done, a database read is done as well. 
-
-Now we'll also argue that when a database read is done sorting is done.
-There are multiple reasons for doing so
-
-Suppose we are sorting things according to pid. To read the system information from the procfs, we need to list all the numeric directories in `/proc` directory. Then we iterate over the sub-directories using linux api calls, however such calls do not guarantee that they will be read in a sorted order, or even consistently in the same order. 
-
-> The filenames returned by readdir() are not in sorted order, but rather in the order in which they happen to occur in the directory (this depends on the order in which the file system adds files to the directory and how it fills gaps in the directory list after files are removed). (The command ls –f lists files in the same unsorted order that they would be retrieved by readdir().) Even if readdir returned things in the same order, processes are being added and removed and would invalidate the previous sorting order as shown in the diagram below 
-
-<img src="images/sorted_indices.png" width="600" heigh="600">
-**DESCRIPTION??**
-but at the time of next read the order might be different, or that a single process has ceased to exist and replaced by another process. This invalidates our sorted indicies array. Therefore we need to sort everytime.  
-
-Therefore we need to sort everytime we refresh the display. In summary everytime we sort/refresh, we do the other as well. 
+There is also a compelling argument for the opposite case i.e. whenever a data reload is performed, sorting must be done as well. Imagine the case where sorting is being done according to PID. One must read all numeric directories in `/proc` directory, then iterate over the sub-directories using Linux API calls. However, such calls do not guarantee that sub-directories will be read in a sorted order, or even consistently in the same order. *The Linux Programming Interface by Kerrisk, 2nd says*
 
 
-The dataflow during sorting is outlined in the diagram below
-`ProcViewPanel` passes the sortkey to [Columns]() when in invokes the `Columns::read()` method. The `Columns:read()` method passes the sortkey along with property string vector to [ProcInfo::update(vector\<string\>, string)](), based on this sortkey, first fresh information is acquired from procfs, this information is stored in [ProcDb](), then a sort is performed on the read values, and an index vector is stored back in [ProcDb](). The information is stored in [ProcDb]() because the UI objects will access the `ProcDb`, and will use the sorted index vector to parse the `ProcDb` data in the sorted order.  
+> The filenames returned by readdir() are not in sorted order, but rather in the order in which they happen to occur in the directory (this depends on the order in which the file system adds files to the directory and how it fills gaps in the directory list after files are removed). (The command ls –f lists files in the same unsorted order that they would be retrieved by readdir().) 
 
-<img src="images/dataflow_sort.png" width="800" heigh="600">
-**DESCRIPTION??**
+<img src="images/sorted_indices.png" width="600" heigh="600"></br>
+**Fig. 15**Invalidation of sorting after the 2nd read
+Even if `readdir` returned sub-directories in the same order, processes are being added and removed. As shown in Fig. 15 if 1 process were added and other removed, the 2nd read would return data in invalidated order. The only anti-dote is to sort everytime a data reload is performed. This means data reload implies sorting. 
 
+Therefore whenever we perform sorting or data reload, we perform the other activity as well. 
 
+*Dataflow during sorting*</br>
+The diagram below describes the missing data flow information during [periodic refresh](#periodic-refresh). 
 
+<img src="images/dataflow_sort.png" width="800" heigh="600"></br>
+**Fig. 16** Dataflow during sorting
 
-
-### Next
-- have we identified and described the error conditions generated during the different use cases
-  - only partially, handling spurious key input
-
-- what about logging?
-  - not done
-- on UI layout specification using a file
-- on configuration management
-
-
+`ProcViewPanel` passes the sortkey (property name according to which sorting needs to be done) to [Columns](html/classrtop_1_1Columns.html) when it invokes the `Columns::read()` method. The `Columns:read()` method passes the sortkey (along with [property strings vector](#periodic-refresh)) to [ProcInfo::update](html/classrtop_1_1ProcInfo.html#acdb821aeef5a9fa279b99adf28f76b66). This results in fresh process data getting acquired (step 3) from *procfs*, this information is stored in `ProcDb`(step 4), then a sort is performed on the read values (step 5), and an sorted index vector is stored back in `ProcDb` (step 6). The sorted index vector is stored in `ProcDb` because the UI objects will access the `ProcDb` (step 6, Fig. 16), and will use the vector to parse the `ProcDb` data in the sorted order.  
 
 
 ## References
@@ -714,60 +721,9 @@ The dataflow during sorting is outlined in the diagram below
 - [ncurses - windows]()
 - [ncurses - doupdate]()
 - [discussion on proc](https://news.ycombinator.com/item?id=12641155)
-
-
-### TOC
-
-
-
-- [References](#references)
-
-- [Checklist](#checklist)
+- [How fast is the /proc database updated?](https://unix.stackexchange.com/questions/74713/how-frequently-is-the-proc-file-system-updated-on-linux)
 
 
 
-### References
- 
 
 
-
-### Checklist
-
-#### Diagrams & Images
-
-1. dfd0: no annotation for database, add figure description, explain how user is interacting with app. explain what /proc is. explain for database is
-
-2. dfd1: explain what data is getting transferred between the modules, explain their roles better, should be add a control module
-
-3. activity loops: add legend, verify symbols
-
-4. class diagrams: add legend to figure, add description. cleanup notation, how to express collections properly 
-
-5. add a digram in performance section to explain window updates - see Details(2)
-
-
-#### Checklist
-
-1. add references
-
-
- 
-
-
-#### Keywords
-use case
-rtop
-periodic updates
-periodic
-periodic graphical updates
-key contexts
-activity loops
-thread
-key input/s
-unresponsive
-list of actions
-function pointers
-method pointers
-screen resize
-UI object
-UI focus 
