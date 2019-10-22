@@ -137,33 +137,30 @@ location_of_rtop/rtop/bin
 
 This should start the application, which should show the following view
 
-![image of process view]()
+<img src="docs/images/main_view.png" width="400" heigh="600"></br>
+
 The image is showing 3 columns for process id, parent process id and cmdline string for invoking the process. This is the default, as we see below we can change it. 
 
 You can scroll up and down the list using the <kbd>&uarr;</kbd> or <kbd>&darr;</kbd> keys. 
 
-![image of scrolling up & down]()
+<img src="docs/images/main_view_scroll.gif" width="400" heigh="600"></br>
 
 You can add more properties to view. To accomplish this, navigate to process settings view by pressing <kbd>F2</kbd>. In this view you see two columns for active properties and all properties. You could navigate between the two using <kbd>&larr;</kbd> and <kbd>&rarr;</kbd> keys. Whatever is in the active properties column will be visible in the process view. 
 
-![imaging showing adding utime to active properties]()
+<img src="docs/images/settings_view.gif" width="400" heigh="600"></br>
 
 In this demo, we add UTIME (user time) property to all properties. We navigate to all properties, scroll down using <kbd>&darr;</kbd> to UTIME, press <kbd>ENTER</kbd> to select it, its color will change to orange/yellow from blue. Now pressing the <kbd>&larr;</kbd> will move it to below the currently selected property in active properties. So UTIME goes below...Note that order of properties in active properties (top -> down) corresponding to column order in process view (left -> right)
 
 
 Now to view the results of your actions, press <kbd>ESC</kbd> to return back to process view
 
-![image showing navigating back to process view from process setting view with scrolling]()
+<img src="docs/images/main_view_addedprop.gif" width="400" heigh="600"></br>
 
 To add another property, go back to process setting view by pressing <kbd>F2</kbd>. You could also delete properties from active properties column, or rearrange the order of items. 
 
-![image showing editing and rearragement in process settings view]()
+<img src="docs/images/settings_view_deletedprop.gif" width="400" heigh="600"></br>
 
 In this demo, the PPID (parent process id) was selected, and <kbd>Del</kbd> was pressed to remove it. Then STIME (system time property) is added to active properties column, since we want STIME to come after UTIME, we press <kbd>ENTER</kbd> (indicated by organe color) to select it for editing, and then press <kbd>&darr;</kbd> to move it below UTIME. Pressing <kbd>ENTER</kbd> again, releases the edit mode. Navigate back to process view mode (press <kbd>ESC</kbd>) to view the results. Here, we have properties displayed in desired order.  
-
- 
-<img src="docs/rtop_demo.gif" width="680" heigh="744">
-
 
 
 ## Licensing
