@@ -147,10 +147,10 @@ The data flow during the 3 use cases is described below:
 
 
 #### Configuring viewable process information 
+
 The user can configure the user interface so that only the relevant process properties are viewable. Further, the user can also reorder the property lists for more suitable viewing. To accomplish these objectives, the user carries out a series of key presses as described in rtop demo in [README](../README.md#rtop-demo)
 
-During all such activities the data flow is occuring only between the user interface module and the business logic module. As soon as the business logic receives a key input, it updates its internal database and sends fresh display information back to the user interface module. The data flow would be similar to the diagram corresponding to the scrolling use case. 
-
+During all such activities, the data flow only occurs between the user interface module and the business logic module. As soon as the business logic receives a key input, it updates its internal database and sends fresh display information back to the user interface module. The data flow would be similar to the diagram corresponding to the scrolling use case (Fig 3). 
 
 
 ### Extensibility  
@@ -174,11 +174,12 @@ Any new view should allow some intraview navigation , for example can be scroll 
 #### Language Choice
 The source code will be implemented exclusively in C/C++. The terminal interfacing code is written using the Ncurses library API (which is in C). It is called from within C++ (how??, is this portable??). Build scripts are written in [make](https://www.gnu.org/software/make/) compliant language. Configuration files are written in XML (v1.0, UTF-8). 
 
-C++ is a widely used language with very good object-oriented support. The other reason for choosing C++ is simply for improving in C++. 
+The reason for choosing C++ (as mentioned above) is to get familiar with it. An important advantage is that C++ has excellent support for object-oriented design which is a must have for building complex text user interfaces.
+ 
 
 #### Linux API
 
-Since this project aim to deploy this application on mostly Linux based systems, linux system calls and GNU C calls are used to read process information inside of the kernel database. The choice of specific API calls is determine by whether they acquire special privileges making them either inaccessible from either user space or by a non-admin user. Second, is that their use should not jeopardize **portability** across different Linux system and times (near future and past Linux distributions). To avoid such problems, an attempt will be made to follow best practices such as using POSIX compliant system calls. 
+Since this project aims to deploy this application primarily on Linux based systems, Linux system calls and GNU C calls are used to read process information inside of the kernel database. The choice of specific API calls is dependent on whether they require special privileges, making them either inaccessible from either user space or by a non-admin user. The other consideration is that their use should not jeopardize **portability** across different Linux systems and versions (near future and past Linux distributions). To avoid such problems, an attempt will be made to follow best practices such as using POSIX compliant system calls. 
 
 #### C++ Style Guidelines
 TODO: need to add specific guidelines
