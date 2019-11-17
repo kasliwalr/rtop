@@ -52,73 +52,69 @@
 
 This is a design document, it details the design of **rtop** version 0.1 guided by these [requirements](Requirements.md). This is meant for use by any developer who wants to understand/modify the rtop code. There are some prerequisites for this document to be well understood. It is assumed that
 
-- developer is familiar with system process monitors in general, whether on Windows (Task Manager) or Linux (htop, top etc). 
+- developer is familiar with system process monitors in general, whether on Windows (Task Manager) or Linux (htop, top, etc). 
 - developer knows what a [Linux API](https://www.amazon.com/Advanced-Programming-UNIX-Environment-3rd/dp/0321637739/ref=pd_sbs_14_t_0/146-1285804-3553013?_encoding=UTF8&pd_rd_i=0321637739&pd_rd_r=77634f80-b533-4cc6-846a-6d1224f1e90a&pd_rd_w=9hn11&pd_rd_wg=jlWXS&pf_rd_p=5cfcfe89-300f-47d2-b1ad-a4e27203a02a&pf_rd_r=B867YQYV8ZSW30CT361V&psc=1&refRID=B867YQYV8ZSW30CT361V) is, knows what we mean by [POSIX](https://en.wikipedia.org/wiki/POSIX) or [SuSv3](https://en.wikipedia.org/wiki/Single_UNIX_Specification) compliant
-- developer is familiar with C++ and C and has basic knowledge of data structures such as list, hash tables and trees. 
+- developer is familiar with C/C++ and data structures including lists, hash tables and trees 
 
-This document talks about two things - the architecture and design of rtop. In the architecture section, a broad overview of the main subsystems of rtop is provided with suitable references to the important requirements pertaining to the visual structure and functionality of rtop. Also provided is a list (in some cases with rationale) of the tooling used in this project, so that the developer can jump start his/her own changes with minimal time spent on researching the tooling or replace some tools based on his/her own preferences. The design section details the subsystem design. ~We detail how each subsystem achieves its goals by describing in detail the rationale behind its decomposition into classes to achieve the desired functionality. Design alternatives will be discussed where ever possible~ (??). The language will be terse and diagrams will be used as a substitute of words. 
+This document talks about two things - the architecture and design of rtop. In the architecture section, a broad overview of the main subsystems of rtop is provided with references to important requirements about the visual structure and functionality of rtop. Also provided is a list (in some cases with rationale) of the tooling used in this project, so that the developer can jump start his/her changes with minimal tooling research or replace some tools based on his/her preferences. The design section details the subsystem design. ~We detail how each subsystem achieves its goals by describing in detail the rationale behind its decomposition into classes to achieve the desired functionality. Design alternatives will be discussed where ever possible~ (??). The language will be terse and diagrams will be used as a substitute for words. 
 
-If you want to try [rtop]() and see what it is capable of, to better understand this document, see the [README](../README.md)
+If you want to try [rtop]()'s features to get a feel for things, see this [README](../README.md) for installation instructions
 
 ## Architecture
 
-What is a text user interface? It is a user interface - the user can interact with it (i.e. manipulate it and also receive visual feedback). The visual feedback is all text based - all you can see on your screen is text. It may be tabulated/highlighted but that is pretty much the extent of it. When interacting with it, the user will typically be navigating across the screen and selecting some options. However, unlike the graphical user interface, navigation is restricted, in the sense that one can only move in quanta of horizontal characters and vertical lines on the screen. Text user interfaces are commonly used on today's [terminal emulators](https://en.wikipedia.org/wiki/Terminal_emulator) which emulate [character-based visual displays](http://toastytech.com/guis/remoteterm.html) which did not have the capability of pixel level resolution. The limited spatial navigation capability may sound limited, but you may find that many text based user interfaces are quite rich - using just text highlighting and structured layout, a text user interface can have table, hidden menus and so forth.
+What is a text user interface? Let's break it down. It is a user interface - the user can interact with it (i.e. manipulate it and also receive visual feedback). The visual feedback is all text-based - all you can see on your screen is text. It may be tabulated/highlighted but that is pretty much the extent of it. When interacting with it, the user will typically be navigating across the screen and selecting some options. However, unlike the graphical user interface, navigation is restricted, in the sense that one can only move in quanta of horizontal characters and vertical lines on the screen. Text user interfaces (TUI) are commonly used on today's [terminal emulators](https://en.wikipedia.org/wiki/Terminal_emulator) which emulate [character-based visual displays](http://toastytech.com/guis/remoteterm.html) which did not have the capability of pixel-level resolution. The limited spatial navigation capability may sound limited, but you may find that many text-based user interfaces are quite rich - using just text highlighting and structured layout, a text user interface can have tables, hidden menus and so forth.
 
-So what does it take to build such a text user interface (TUI). The following sections discuss the major points in building the text interface for rtop which is deployable on Linux, specifically Ubuntu 16.04 LTS Desktop version 
-
+So what does it take to build such a text user interface? The following sections discuss the major points in building the text interface for rtop which is deployable on Linux, specifically Ubuntu 16.04 LTS Desktop version 
 ### Building Blocks
 
+TODO??: should we relate our design to MVVM or MVC (don't even know what they are?)
 
-TODO??: should we relate our design to MVVM or MVC(don't even know what they are?)
+Every text interface can be thought of as consisting of multiple building blocks each of which performs a specific function. There are three major concerns we are trying to address when building a text user interface. 
 
-Every text interface can be thought of as consisting of multiple building blocks each of which perform a specific function. There are three major concerns we are trying to address when building a text user interface. 
+1. How to build a text interface on the Linux systems? How to display information on a Linux system? How to acquire input from the user's keyboard and mouse actions? 
 
-1. How to build a text interface on the Linux systems? How to display information on a Linux system? How to acquire input from user's keyboard and mouse actions? 
-
-2. Second is about the specifics of the application or what is commonly referred to as the **business logic**. We must clarify as to how will be acquire and store the information about processes? How will we lay out this information? 
+2. Second is about the specifics of the application or what is commonly referred to as the **business logic**.  How to acquire and store information about processes? How to present this information? 
 
 3. How to design the system in a maintainable, extensible and clean manner?
 
 We address our concerns by first assigning them to different subsystems, which are described below
 
-
 #### System interfacing 
-There are many ways one can obtain information about a process's properties. The Linux kernel maintains this information in kernel data structures. Linux offers an API \(see [procfs](#accessing-and-parsing-proc-database) in design section\) that allows users to access this information by reading process specific files. This information must be acquired at regular intervals or asynchronously (on user input), stored at one place where it can be efficiently accessed or manipulated (for example sorted).
+
+There are many ways one can obtain information about a process's properties. The Linux kernel maintains this information in kernel data structures. Linux offers an API \(see [procfs](#accessing-and-parsing-proc-database) in design section\) that allows users to access this information by reading process specific files. This information must be acquired at regular intervals or asynchronously (on user input), stored at one place, from where it can be efficiently accessed or manipulated (for example sorted).
  
 System interfacing module's job is to provide a simple API (to be used by other modules) that abstracts away the details of how the process specific information is acquired. 
 
-One solid reason for hiding the OS specific details of how process information is accessed is **portability**, how process information is layed out and therefore accessed may differ across different revisions or distributions of Linux kernel as well other Unix-like OSes (??citation). Second reason is that it makes the development work more modular and therefore efficient. 
+One good reason for hiding the OS specific details of how process information is accessed is **portability** - different revisions or distributions of the Linux kernel store processes information differently and make is accessible using different APIs (??citation). The other reason is that it makes the development work more modular and therefore efficient. 
 
 #### Business logic
-This module concerns itself with how the information is layed out (how many views?, what is in each view). This part usually follows in a straightforward manner from the [user interface requirements](Requirements.md#user-interface). It also concerns itself with user actions. What happens on [wrong input](Requirements.md#handling-bad-input)? Error handling. How to manage conditions that can potentially cause the system to crash? How to recover from bad inputs and crashes? It also concerns itself with how the user uses the system. What are all the features accessible to the user?
 
-So the business logic module draws heavily on the functional requirements. What the user can/cannot do? What constitutes the bad input? How is bad input handled? This module also orchestrates the actions of the other modules to achieve the desired functionality. 
+This module concerns itself with how the information is laid out (how many views? what is in each view?). This part follows from the [user interface requirements](Requirements.md#user-interface). It also concerns itself with error handling. How to manage [wrong input](Requirements.md#handling-bad-input) and conditions that can potentially cause the system to crash? How to recover from such inputs and crashes? Finally, it concerns itself with usability.  What are all the features accessible to the user?
+
+So the business logic module draws heavily on the functional requirements - what the user can/cannot do. What is bad input? , how is bad input handled?  This module also orchestrates the actions of the other modules to achieve the desired functionality. 
  
-The reason for existence of this module is to separate the rules/logic from the object on which they act upon. This module is similar to the *model* in the [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design pattern. 
+The reason for existence of this module is to separate the rules/logic from the object on which they act. This module is similar to the *model* in the [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design pattern. 
 
 #### User interface
-This module is concerned with managing the mechanisms underlying the display of text user interfaces on Linux systems, and how to acquire input through mouse and keyboard. It is also held responsible for performance concerns pertaining to speed of acquisition of input and generation of output. For example, there should not too much of a delay from a key press to it being detected by the system or delay between instruction to layout information and it being displayed on screen. 
+This module is concerned with managing the mechanisms underlying the display of text user interfaces on Linux systems, and how to acquire input through mouse and keyboard. It is also responsible for ensuring that input acquisition and output generation are sufficiently fast. For example, there should not be too much of a delay from a key press to it being detected by the system, nor a delay between instruction to display information and it being displayed on screen.
 
-This module's job is to abstract away the lower level details such as configuring and managing terminal emulators on Unix-like system and provide a 
-flexible API that allows one to build a sufficiently detailed layout of the interfaces, one that can be extended easily. 
- 
-
-One important benefit that this module allows is simplifying the task of the business logic to create layouts and capture user input through use of its API. This simplifies the business logic significantly and hence reduces the overall complexity of the system. Secondly it increase portability of the business module, by allowing it to use the same API across different terminal emulators and different systems. If we want to display the text user interface on a different terminal emulators, we only need to generalize this module to handle that, the business logic remains unware of which terminal emulator is being used to display that information. This module is an amalgamation of the *view* and *controller* in the [MVC](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller) design pattern. 
+This module's job is to abstract away the lower level details such as configuring and managing terminal emulators on Unix-like system and provide a flexible API that allows one to build a sufficiently detailed layout of the interfaces, one that can be extended easily.
+One important benefit that this module allows is simplifying the task of the business logic to create layouts and capture user input. This simplifies the business logic significantly and hence reduces the overall complexity of the system. Secondly, it increases the portability of the business module, by allowing the business module to use the same API across different terminal emulators and different systems. If you want to display the text user interface on different terminal emulators, you only need to generalize this module to handle that, the business logic remains the same. You can view this module as an amalgamation of the view and controller in the MVC design pattern. 
 
 
 #### Error handling
 
-This is a subsystem which is concerned with how to handle error conditions generated in the various subsystems and the overall operation of the program. It concerns itself with understanding the sources of errors and the actions that need to be taken to mitigate them. The error handling will depend on the specifics of the function/class etc, but in general the module will try to do one of three things
+This subsystem is concerned with how to handle error conditions generated in the various subsystems and the overall operation of the program. It concerns itself with providing information to the developer/user to enable them to find the sources of errors and the actions that need to be taken to mitigate them. The error handling depends on the specifics of the function/class etc, but in general, this module will try to do one of three things:
 
-1.  ignore those errors, 
-2.  take some corrective measures
-3.  log and crash so that some debug information is accessible to the developer. 
+1. ignore those errors
+2. take some corrective measures
+3. log and crash so that some debug information is accessible to the developer
 
-This module contains logic that recognizes error conditions, defines error messages, defines log formats and interacts with logging framework. The development of this module progress with design as more error condition or cases are uncovered. 
+This module contains logic that recognizes error conditions, defines error messages, defines log formats and interacts with logging framework. The development of this module progress with design as more error conditions are uncovered.
 
-So this modules job is to define errors and handle them in appropriate ways such as ignoring, exiting the application, logging etc. No matter what it does, having a logging (read more on [logging](#logging-using-boost) in design section) is a minimum requirement. 
+So this module's job is to define errors and handle them in appropriate ways - such as ignoring, exiting the application, logging, etc. Logging (read more on [logging](#logging-using-boost) in design section) is a minimum requirement.
 
-The most important benefit that error handling provides is proper logging, which helps in uncovering bugs during development as well post shipping. 
+The most important benefit that error handling provides is proper logging, which helps in uncovering bugs during development as well post shipping.
 
 ### How do subsystems interact?
 
@@ -131,7 +127,7 @@ The data flow during these 3 situations is described below.
 
 1. Periodic updates: During a periodic updates, the business logic initiates a read of system information from the system interfacing module. It is estimated that ~25-100KB of information travels between the system interfacing and business logic modules (25 property fields per process, 10 characters per field and 100's of such processes). The data is then transferred from the business logic to the user interface module for display. Although not part of the application, there is information travel between the kernel databases and the system interfacing module. 
 
-<img src="images/arch_graphical_update.png" width="400" heigh="400"></br>
+<img src="images/arch_graphical_update.png" width="400" heigh="400">
 **Fig. 1** Inter-module data flow during a periodic graphical update
 
 2. Scrolling the process property list: When the user scrolling through the process property list, the key input information travels from the user interface module to the business logic module. The business logic module perform the required changes to its representation of displayed data, and sends back the new position of the scroll bar to be displayed by the user interface module. There is no data flow into or out of the system interfacing module. 
