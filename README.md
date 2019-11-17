@@ -1,12 +1,12 @@
 # rtop - a system process monitor 
 
-What is **rtop**? It is not an acronym, it is named so because it is very similar to [htop](https://github.com/hishamhm/htop), a widely used system process monitor, named after its original creater - Hisham Muhammad. I have taken up this endevour to exercise my c++ skills to build something useful. In my effort, I have taken ideas from htop's user interface. Infact, **rtop**'s interface looks exactly like **htop**'s - no point trying to come up with usability aspects when the wide htop user base testifies to its excellent usability. I myself have enjoyed using it. Since my goal has been to exercise my c++ skills, I have built **rtop** from ground up guided by these [requirements](docs/Requirements.md), its completely of my own design, which I have described is this [design document](docs/Design.md)
+What is **rtop**? It is not an acronym, it is named so because it is very similar to [htop](https://github.com/hishamhm/htop), a widely used system process monitor, named after its original creater - Hisham Muhammad. I decided to create rtop to exercise my c++ skills. In my effort, I have taken ideas from htop's user interface. Infact, **rtop**'s interface looks exactly like **htop**'s - no point trying to come up with usability aspects when the wide htop user base testifies to its excellent usability. I myself have enjoyed using it. Since my goal has been to exercise my c++ skills, I have built **rtop** from ground up guided by these [requirements](docs/Requirements.md), its completely of my own design, which I have described is this [design document](docs/Design.md)
 
-Currently, **rtop** can be installed on any machine running Ubuntu 16.04 LTS (Xenial). The installation instructions are provided below
+Currently, **rtop** can be installed on any machine running Ubuntu 16.04 LTS (Xenial). The installation instructions and a brief demo of rtop's capabilities are provided below
 
 ## Installation
 
-rtop has 3 major dependencies - Boost.Log library, pugixml library (an XML parser) and Ncurses library. One needs to install them (in no particular order) before compiling and running rtop. I will first detail the dependencies installation, then compilation of rtop and finally demonstrate how to use it 
+rtop has 3 major dependencies - Boost.Log library, pugixml library (an XML parser) and Ncurses library. One needs to install them (in no particular order) before compiling and running rtop. I will detail the dependencies installation followed by instructions on rtop compilation 
 
 ### Clone rtop
 
@@ -68,7 +68,7 @@ This may take **5-10 minutes**. So be prepared to wait a while. You can verify i
  
 ### NCurses installation
  
- NCurses is a library used for building text user interface on Unix systems. It makes the job of talking to terminal emulators (your typically linux terminals). By using its API, it becomes easy to program for capturing keyboard input and sending output to the terminal. If you are interested in learning, [detailed examples](http://www.tldp.org/HOWTO/NCURSES-Programming-HOWTO/) on TLDP are the go to place. Ncurses is distributed as debian package, so we use apt-get facility 
+ NCurses is a library used for building text user interfaces on Unix systems. It talks to the terminal emulators (your typical linux terminals) on behalf of the application - using its API, it becomes easy to program for capturing keyboard input and sending output to the terminal. Ncurses is distributed as debian package, so we use apt-get facility 
  
 ```
 > sudo apt-get install libncurses5-dev libncursesw5-dev
