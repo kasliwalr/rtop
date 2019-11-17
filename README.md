@@ -126,7 +126,7 @@ Makefile  rtop_v0_1.cpp
 ```
 Note that I am using c++11 flag with gcc version later than 5.4.0. The compiler will generate some warnings, this is ok, it does not create any issues. This warning will be eliminated in future revisions.
 
-### rtop demo
+## rtop demo
 
 The application is started by opening a terminal window. Navigate to *rtop* folder on your computer, and locate the binary in *bin* subfolder. Invoke the executable as follows
 ```

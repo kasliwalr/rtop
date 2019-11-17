@@ -121,31 +121,33 @@ The most important benefit that error handling provides is proper logging, which
 To better understand the working of rtop, it is important to understand the interaction between its different subsystems. The discussion is at a very high level, and the goal is ??
 
 #### Viewing of process information
-This is somewhat passive activity where the user is able to view the periodically updated (say every second) process information. Occasionally the user may interact with the view either scrolling through the process list or clicking on some specific property list to change the sorting criteria. 
+This is a somewhat passive activity where the user can view the periodically updated process information. Occasionally, the user may interact with the view by scrolling through the process list or clicking on a specific property list to change the sorting criteria.
 
-The data flow during these 3 situations is described below. 
+The data flow during the 3 use cases is described below:
 
-1. Periodic updates: During a periodic updates, the business logic initiates a read of system information from the system interfacing module. It is estimated that ~25-100KB of information travels between the system interfacing and business logic modules (25 property fields per process, 10 characters per field and 100's of such processes). The data is then transferred from the business logic to the user interface module for display. Although not part of the application, there is information travel between the kernel databases and the system interfacing module. 
+1. During a periodic update, the business logic initiates a read of system information from the system interfacing module. It is estimated that ~25-100KB of information travels between the system interfacing and business logic modules (25 property fields per process, 10 characters per field and 100's of such processes). The data is then transferred from the business logic to the user interface module for display. There is also information travel from the application's system interfacing module to kernel databases (not shown in Fig 1)
 
 <img src="images/arch_graphical_update.png" width="400" heigh="400">
 
 **Fig. 1** Inter-module data flow during a periodic graphical update
 
-2. Scrolling the process property list: When the user scrolling through the process property list, the key input information travels from the user interface module to the business logic module. The business logic module perform the required changes to its representation of displayed data, and sends back the new position of the scroll bar to be displayed by the user interface module. There is no data flow into or out of the system interfacing module. 
+2. Scrolling the process property list: When the user is scrolling through the process property list, the <kbd>&uarr;</kbd>/<kbd>&darr;</kbd> key input information travels from the user interface module to the business logic module. The business logic module performs the required changes to its representation of displayed data and sends back the new position of the scroll cursor to the user interface module for display. There is no data flow into or out of the system interfacing module. 
 
 
-<img src="images/arch_scrolling.png" width="400" heigh="400"></br>
+<img src="images/arch_scrolling.png" width="400" heigh="400">
+
 **Fig. 2** Inter-module data flow during scrolling
 
-3. Sorting the process property list: When the user selects a particular property to change the sorting criteria, the mouse input information travels from the user interface module to the business logic module. The business logic module instructs the system interface module to acquire new process information ([why read process information for a sort request?](#sorting-by-selecting-property-using-mouse)) resulting in data flow from system module to business logic. The business logic module sorts this information and passes it onto the user interface module. 
+3. Sorting the process property list: When the user mouse clicks a particular property to change the sorting criteria, the click information travels from the user interface module to the business logic module. The business logic module instructs the system interface module to acquire new process information ([why read process information for a sort request?](#sorting-by-selecting-property-using-mouse)) resulting in data flow from the system interface module to business logic. The business logic module sorts this information and passes it onto the user interface module. 
 
-<img src="images/arch_sorting.png" width="400" heigh="400"></br>
+<img src="images/arch_sorting.png" width="400" heigh="400">
+
 **Fig. 3** Inter-module data flow during sorting
 
 
 
 #### Configuring viewable process information 
-The user can configure the user interface to view only those process properties that are relevant to him/her. They may also want to arrange the properties in an order more suitable for them to view. The user carries out a series of key presses that result in activities as described in demonstration in [README](../README.md#rtop-demo)
+The user can configure the user interface so that only the relevant process properties are viewable. Further, the user can also reorder the property lists for more suitable viewing. To accomplish these objectives, the user carries out a series of key presses as described in rtop demo in [README](../README.md#rtop-demo)
 
 During all such activities the data flow is occuring only between the user interface module and the business logic module. As soon as the business logic receives a key input, it updates its internal database and sends fresh display information back to the user interface module. The data flow would be similar to the diagram corresponding to the scrolling use case. 
 
