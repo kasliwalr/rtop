@@ -200,24 +200,18 @@ TODO: need to add specific guidelines
 
 #### Version Control
 
-Git has been used for revision control. Since this is a small scale project with a single developer at this time, features are added in a sequential fashion. 
-
-The development work happens on the *dev* branch, this includes code implementation, testing and documentation. 
-Once a feature is reasonably complete which means its code is working and tested well and its documentation is in good shape, we merge the changes back into the *master*. This merged commit, is a new release easily identifiable using a tag. The tags are named according to a numbering scheme of the form *x.y*, where *x* is version number followed by *y* which is features number. 
-
-This process is clarified through the diagram below
+Git has been used for revision control. Since this is a single developer project, most features are added  sequentially. Features are developed on the *dev* branch, this includes code implementation, testing and documentation. Once a feature is reasonably complete which means its code is working and tested well and its documentation is in good shape, it is merged into master/release branch. This merged commit, is a new release which is identifiable using a tag. The tags are named according to a numbering scheme of the form x.y, where x is version number followed by y which is features number. This process is clarified through the diagram below
 
 <img src="images/dev_workflow.png" width="800" heigh="400"></br>
 **Fig. 4** Git workflow for rtop
 
-Any user and developer then can access these release commit using the tag for their use. One would find that each release has its own README, REQUIREMENTS and DESIGN documents. Usually one can access them starting with the README, the links are consistent in that sense.
+A not so uncommon scenario is that a developer may get stuck on some particularly tricky feature while progress can be made on some non-interfering feature. In such a case, a temporary branch is created off the *dev* branch (not shown in the diagram). Once work is complete on the *temp* branch, it is merged back into the *dev* branch (NOT *master*)
 
-Sometimes, one may get stuck on a feature during the course of development, while progress can be made on some non-interfering piece of code. In such a case, a temporary branch is created off the *dev* branch (not shown in the diagram). Once work is complete on the *temp* branch, it is merged back into the *dev* branch (NOT *master*)
+A user or developer can access the release commits using tags that specify version numbers. Each release has its README, REQUIREMENTS and DESIGN documents. REQUIREMENTS and DESIGN documents corresponding to the same version of software to which README belongs are accessible from hyperlinks within the README
 
 #### Debugging 
 
-Debugging is performed using GNU tools. This primarily include GNU debugger, [gdb v7.11 or greater](https://www.gnu.org/software/gdb/). For checking memory leak, the [valgrind](http://valgrind.org/) tools suite is used. The [logging](#logging) system which is part of the application is the most important tool, as using gbd to debug a TUI is cumbersome. 
-
+Debugging is performed using GNU debugger [>= gdb v7.11](https://www.gnu.org/software/gdb/). Memory leaks are checked using [valgrind](http://valgrind.org/) tools suite. Logging is performed using the Boost logging library. Further details on logging system are provided [here](#logging) 
 
 ?? How have we done the debugging
 ?? lcurses_g option
@@ -228,7 +222,7 @@ TBD
 
 #### Distribution
 
-At the minimum, for each release, the complete source code, along with installation/use instructions, requirements and design documentation will be provided under *MIT License*. These will be available on the master branch of the [rtop project repo](https://github.com/kasliwalr/rtop). The source code organization is described below
+Releases are available on the master branch [rtop project repo](https://github.com/kasliwalr/rtop). Each release contains the source code, installation/use instructions, requirements, and design document, provided under MIT License. The source code organization is described below
 
 ```
 # source tree
@@ -253,7 +247,7 @@ At the minimum, for each release, the complete source code, along with installat
 |tests|folder containing testing code|
 
 
-In future, for each Linux distribution we deploy to, an appropriate package distribution method will be used. 
+In the future, an appropriate package distribution method will be used for each targeted Linux distribution 
 
 TODO??: 
 - add license notices to source code
@@ -261,26 +255,25 @@ TODO??:
  
 #### Logging
 
-There are many logging systems with different properties, such as open vs close source, free, language support etc. For this project, the main criteria driving selection of a logging system are as follows
+The major criteria for selecting a logging system are as follows
 
 1. should support formatted output
-2. should be able to print thread specific information
+2. should print thread specific information
 3. should have a C++ API
-4. should be open source, ideally [copy-left](https://www.gnu.org/licenses/copyleft.en.html) like GPL, but non-copy FOSS is also fine (a general requirements for using 3rd party code)
-5. should be reliable (signified by a large user base) and well supported
-6. should have a stable API (create less problems for maintaining code base)
-7. compatible with Linux based systems (which is the target system)
-
+4. should be open source, ideally [copy-left](https://www.gnu.org/licenses/copyleft.en.html) like GPL, but non-copy FOSS is also fine (a requirement for using 3rd party code)
+5. should be reliable and well supported (as indicated by a large user base)
+6. should have a stable API (fewer problems for maintaining code base)
+7. compatible with Linux and other Unix-like systems 
 
 For this project, [Boost.Log](#third-party-libraries) package has been chosen for logging. 
 
+
 #### Development Tools
 
-The development work will be done on an Ubuntu 16.04 LTS, with the following tools
+The development was done on an Ubuntu 16.04 LTS, with the following tools
 1. gnu compiler collection: [>= gcc 5.4.0](https://gcc.gnu.org/)
-2. vim editor: [>= vim 7.4](https://www.vim.org/). 7.4 or greater. It is used for standard (but speedy) editing and assumes the most common vim commands. You could use a lesser version if you like
+2. vim editor: [>= vim 7.4](https://www.vim.org/). 7.4 or greater. This is a personal preference. Any editor suitable to the developer could be used
  
-
 #### Performance Measurement
 
 TBD
@@ -295,14 +288,14 @@ TBD
 
 ## Design
 
-This section dives into the design of rtop application. It will serve as a guide for current or future developers to understand the code better, adding new features to it and to improve its performance. The discussion starts at the bird's eye view of the system, and from there dives deeper into implementation details (with rationale) of specific modules, component classes and functions. System function is illustrated through studying the interactions of the software components while exercising the important use cases. 
+This section dives into the design of rtop. It will serve as a guide for current or future developers, by helping them understand the source code, add new features and improve application performance. The discussion begins with a bird's eye view of the system and then dives deeper into implementation details (with rationale) of specific modules, classes, and functions. The system function is illustrated through studying the interactions amongst rtop's components while exercising important use cases.
 
 ### Overview
 
-From a systems perspective, at the top-most level, the rtop application interacts with 3 external entities (as shown in the diagram below) They are a 1) a persistent database, 2) process file system (*procfs*), and 3) the user. The rtop application interacts with the database during initialization to load information and before exiting to save information. *procfs* provides process information. The user consumes application data by viewing the results displayed by the application. The user also provides commands to the application through the text based user interface. 
+From a systems perspective, at the top-most level, rtop interacts with 3 external entities (see diagram below) They are a 1) a persistent database, 2) process file system (*procfs*), and 3) the user. The rtop application loads information from the database during initialization and stores information into it before shutdown.  *procfs* provides process information. The user consumes data by viewing the results displayed by rtop. The user also provides commands to rtop through its text based user interface. 
 
 <img src="images/dfd_level0.png" width="400" heigh="350"></br>
-**Fig. 5**Data flow between external environment and the rtop application. User and rtop exchange exchange data through the keyboard and screen. On the computer, rtop interacts with the file system to access configuration information which is stored in a file. It also interacts with the */proc* file system to access to read process information. *procfs* is a special feature of Unix-like system that make it easy to access information residing in kernel database. 
+**Fig. 5** Data flow between the external environment and the rtop application. User and rtop exchange data through the keyboard and screen. rtop interacts with persistent database on the file system to access configuration information. It reads process information residing in kernel databases using the Unix's */proc* file system API
 
 
 Lets focus on a level below. In the diagram below, we see the rtop application decomposed into submodules that we talked about in the [architecture section](#building-blocks). They are a useful abstraction to understand how the application functions, all of the classes we talk about later can be classified to be residing inside one of these modules based on the kind of function that they perform. 
