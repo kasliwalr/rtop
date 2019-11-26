@@ -399,19 +399,19 @@ Although performance optimization is not a priority at this time, there is one a
 
 Ncurses introduces some abstractions between the data to be put on screen and actual physical screen. The crux of the matter is to use these abstraction properly so as not to unnecessarily slow down the graphical updates. 
 
-NCurses internally maintains a representation of the **physical screen** (the state of the physical screen when last updated), and a **virtual screen** (which is the screen's state that the user wants to render on the physical screen). Ncuses also has an abstraction called **WINDOW**, which is an object that represents a section of the screen, to be more accurate, a **WINDOW** represents a section of the **virtual screen** and a screen may be (and usually is) subdivided into multiple windows - we call this a **tiled** screen (divided into spatially non-overlapping regions). So lets say you tiled a screen, you modify a small region of the screen corresponding to one or more **WINDOW**s and now you want to put the information onto the screen (top row Fig. 8 ) 
+NCurses internally maintains a representation of the **physical screen** (the state of the physical screen when last updated), and a **virtual screen** (which is the screen's state that the user wants to render). Ncurses also has an abstraction called **WINDOW**, which is an object that represents a section of the screen, to be more accurate, a **WINDOW** represents a section of the **virtual screen**. A screen is usually subdivided into multiple windows - we call this a **tiled** screen because the windows are non-overlapping. rtop's screens are tiled screens. So let's say you have a tiled screen, you modify a small region of the screen corresponding to one or more **WINDOW**s and now you want to put the information onto the physical screen (top row Fig. 8 ) 
 
 
 The function to perform this update has the following prototype 
 ```
 wrefresh(WINDOW* win);
 ```
-On each `wrefresh` two internal functions, `woutrefresh(WINDOW* win)` and `doupdate` are called, the first one puts the information in the WINDOW data structure into the virtual screen. The `doupdate` then compares the physical and virtual screen and pushes the difference onto the physical screen. So instead of everything being redrawn, only the region specific to the changed window is updated. This brings us to the first optimization
+On each `wrefresh` two internal functions, `woutrefresh(WINDOW* win)` and `doupdate()` are called, the first one puts the information in the WINDOW data structure onto the virtual screen. The `doupdate` then compares the physical and virtual screen and pushes the difference onto the physical screen. So instead of everything being redrawn, only the region specific to the changed window is updated. This brings us to the first optimization
 
 <img src="images/performance_ncurses.png" width="800" heigh="800"></br>
 **Fig. 8** Data flow during graphical updates using NCurses API
 
-Optimization 1: Divide the screen, into separate windows, such that separate activities map to different windows. This allows us to update only specific windows and reduce the cost of physical screen update. This is clarified in the middle row of Fig. 8
+Optimization 1: Divide the screen, into separate windows, such that separate activities map to different windows. This allows us to update only specific windows and reduce the cost of physical screen update. This sequence is represented in middle row of Fig. 8
 
 
 It was mentioned above that each `wrefresh` corresponds to two actions. If two window updates are happening relatively quickly (so that the user may not notice), one should avoid calling `wrefresh` for each window. This brings us to the second optimization
@@ -421,9 +421,9 @@ Optimization 2: Where ever possible instead of multiple `wrefresh`, do multiple 
 
 #### Screen resizing
 
-One must understand that the application runs on terminal emulators rather than real terminals, and thus unlike real terminals, the size of the screen can change. Screen resizing is a possible user action. This user action is not handled by the terminal emulator, meaning that although the screen size is changed (by the windows manager), a signal (SIGWINCH) to the client process is sent. It is the job of the client process (in this case, rtop) to handle this appropriately. If we don't notify rtop, it will continue to assume the old window size, and will try to render information on regions that do not exist anymore. 
+rtop runs on terminal emulators rather than real terminals, and thus unlike real terminals, the user can resize the screen. This user action is not handled by the terminal emulator, meaning that although the screen size is changed (by the windows manager), a signal (SIGWINCH) to the client process is sent. It is the job of the client process (in this case, rtop) to handle this appropriately. If we don't notify rtop, it will continue to assume the old window size and will try to render information on regions that do not exist anymore.
 
-If you run such an application in debugger (such as [gdb](#debugging)) and configure it to handle signals, you will see something like this
+This behavior has been verified by running rtop in a debugger (such as [gdb](#debugging)). When the debugger was configured to handle the signals and run, the following output was generated
 
 ```
 > handle SIGWINCH print
@@ -433,31 +433,21 @@ Thread 1 "rtop_v0_1" received signal SIGWINCH, Window size changed.
 terminate called without an active exception
 ```
 
-Once, the application has the screen size information (size and position of windows), it can scale and reposition the layout as necessary. From a usability perspective, it seems appropriate to prevent extreme resizing of the screen such as sizing it to be very small. 
+The solution to above problem is to handle the signal. The signal handler scales and repositions the layout based on the screen size information. It is important to keep in mind usability by preventing extreme resizing of the screen - very small screen size is not useful for reading information. 
 
 #### Accessing and parsing /proc database
 
-To access process information, we rely on the [proc file system](https://en.wikipedia.org/wiki/Procfs), available on all Unix based systems. On linux, the process information is distributed amongst multiple text files inside subdirectories of `/proc` directory. There is a unique subdirectory per process, and its named with the process id (PID) value. For example to access information associated with the *init* process which as PID of 1, files in directory `/proc/1/` will be accessed.
+Process information is accessed using the [proc file system](https://en.wikipedia.org/wiki/Procfs), available on all Unix based systems. On Linux, the process information is distributed amongst multiple text files inside subdirectories of `/proc` directory. There is a unique subdirectory per process that is named with the process id (PID) value. For example to access information associated with the *init* process which has PID of 1, files in directory `/proc/1/` should be accessed.
 
-rtop draws its information from 3 files - `/proc/pid/stat`, `/proc/pid/cmdline` and `/proc/pid/status`. 
+rtop draws process information from 3 files - `/proc/pid/stat`, `/proc/pid/cmdline` and `/proc/pid/status`. The discussion below focuses on the race conditions that might be present when accessing the proc file system. For details on how to read a particular text file, refer to its format information. 
 
-Parsing details pertaining to  ?? are not covered. In this section, one is not concerned with the specific format of a given file, one can always devise a suitable strategy to parse a given text file format. Rather, the discussion focuses on the race conditions that might be present when accessing the proc file system. 
-
-
-The algorithm for accessing and parsing process files is quite basic. We read the contents of the `/proc` directory using the `opendir` and `readdir` system call. The `opendir` call provides a pointer object that allows scanning through the directories' contents, `readdir` performs the scan through the `/proc` visiting each process specific subdirectory in turn, accessing files inside of it and parsing them. However since processes are getting added and removed asynchronously, one has to careful in using these system calls and understand the guarantees they offer. On this note, *The Linux Programming Interface by Kerrisk, 2nd* says
+The algorithm for accessing and parsing process files is pretty straightforward. The contents of the `/proc` directory are read using the `opendir` and `readdir` system calls. The `opendir` call provides a pointer object that allows scanning through the directories' contents. This pointer is passed to `readdir` which performs the scan through the `/proc` directory, visiting each process specific subdirectory in turn, accessing files inside of it and parsing them. However, since processes are getting added and removed asynchronously, one has to careful in using these system calls and understand the guarantees they offer.  *The Linux Programming Interface by Kerrisk, 2nd* says
 
 >If the contents of a directory change while a program is scanning it with readdir(), the program might not see the changes. SUSv3 explicitly notes that it is unspecified whether readdir() will return a filename that has been added to or removed from the directory since the last call to opendir() or rewinddir(). All filenames that have been neither added nor removed since the last such call are guaranteed to be returned.
 
+This forces us to add logic to handle situations where subdirectories are getting added or removed from `/proc` directory. One must also understand that files inside the proc file system are not actual files, they are just an abstraction, what is actually happening when a file's information is accessed is that it is read immediately from the kernel database. It is also implied that the directory `/proc` is populated when it is opened for reading - sort of like a snapshot. When the `/proc` directory is scanned using `readdir`, we inspect each process's pid directory. It is at this time that the `/proc/pid` information is updated again. If we try to access the `/proc/pid`, but the process by that pid does not exist, the open call will return an error. New process may be also added while scanning `/proc` using readdir, in such a case, one may not scan through it and miss it. 
 
-Therefore the system calls provide no guarantee in this matter. This forces us to add logic to handle such situations. 
-
-
-One must also understand that files inside the proc file system are not actual files, they are just an abstraction, what is actually happening when a file is opened, is that information supposed to be inside it is read immediately from the kernel database. 
-
-
-This discussion implies that the directory `/proc` is populated when we open the directory for reading. So we take one snapshot at the time of opening. Now when we start scanning it using `readdir`, we inspect each process's pid directory. It is at this time, again that this information is updated, if we try to access the directory pid in /proc, but the process by that pid does not exist, the open call will return an error. New process may be added while you are scanning readdir, in such as case, you may not scan through it i.e. you may not know if a process has been added or you may. 
-
-A summary of all the different scenarios, their implications and the decision that algorithm makes to handle them are described. 
+A summary of all the different scenarios, their implications and the decision that algorithm makes to handle them are described below:
 
 **Table 1**
 
@@ -469,7 +459,7 @@ A summary of all the different scenarios, their implications and the decision th
 |process `/proc/pid` was read. before scan finished, it was killed, another process added by same pid, and then `/proc/pid` was read again before scan completes|this is highly unlikely because linux does not assign a recently deceased process's pid to another process for some time, while the read finishes much quicker on 10s of msec. If it does happen, probably the dead process's information is overwritten with alive (new) process information|no change. works as is|
 |a process dies during reading of `/proc/pid` files| if algorithm is reading the last file, it would not report any error and report the process as alive - same as 1st case. if algorithm is reading the 1st or 2nd file, it will complete the read, then when it goes onto next file (2nd or 3rd), it will report an error|only in the case that last file is being read do we report an alive process. it will be updated at next scan. no change works as is|
 
-So here is our simple algorithm
+Below is the algorithm pseudocode
 
 ```
 read procfs:
@@ -479,7 +469,7 @@ read procfs:
    if no error in opening any of the  files:
      store information in database
 ```
-For us, any process that died after we read the entry is still alive and we display its last obtained information. 
+Any process that died after its files in `/proc/pid` were read is considered alive, and its information is displayed. 
 
 ### Before we begin
 
